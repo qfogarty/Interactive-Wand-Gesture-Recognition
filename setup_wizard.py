@@ -8,7 +8,6 @@ import yaml
 import subprocess
 from pathlib import Path
 import sys
-import time
 
 # ANSI color codes
 class Colors:
@@ -121,11 +120,35 @@ def configure_hardware():
         config['servo_max_pulse'] = ask_number("Maximum pulse width", 0.0025)
 
     # IR Illuminator (Optional)
-    print(f"\n{Colors.BOLD}IR Illuminator (Optional):{Colors.NC}")
-    config['ir_enabled'] = ask_yes_no("Enable IR illuminator?", default=True)
-    if config['ir_enabled']:
-        config['ir_gpio'] = ask_number("IR illuminator GPIO pin", 18, min_val=0, max_val=27)
-        config['ir_pwm_freq'] = ask_number("PWM frequency (Hz)", 1000, min_val=100)
+    print(f"\n{Colors.BOLD}IR Illuminator:{Colors.NC}")
+    print("Choose your IR illuminator type:")
+    print("  1. Camera-mounted IR ring (5W, mounts on camera - SIMPLE)")
+    print("  2. External IR board (12V, separate board - MORE POWERFUL)")
+
+    ir_choice = input(f"{Colors.YELLOW}Select option [1/2]{Colors.NC}: ").strip()
+
+    if ir_choice == "1":
+        # Camera-mounted IR
+        config['ir_type'] = 'camera-mounted'
+        config['ir_enabled'] = False  # No GPIO control
+        print(f"{Colors.GREEN}✓ Camera-mounted IR selected - no GPIO control needed{Colors.NC}")
+        print(f"  Note: Camera settings will be adjusted for dimmer IR source")
+        # Adjust camera settings for camera-mounted IR
+        config['camera_exposure'] = 12000  # Increase exposure
+        config['camera_gain'] = 8.0        # Increase gain
+    elif ir_choice == "2":
+        # External IR board
+        config['ir_type'] = 'external'
+        config['ir_enabled'] = ask_yes_no("Enable GPIO control (PWM brightness)?", default=True)
+        if config['ir_enabled']:
+            config['ir_gpio'] = ask_number("IR illuminator GPIO pin", 18, min_val=0, max_val=27)
+            config['ir_pwm_freq'] = ask_number("PWM frequency (Hz)", 1000, min_val=100)
+        print(f"{Colors.GREEN}✓ External IR board selected{Colors.NC}")
+    else:
+        # Default to camera-mounted (simplest)
+        print(f"{Colors.YELLOW}Invalid choice, defaulting to camera-mounted IR{Colors.NC}")
+        config['ir_type'] = 'camera-mounted'
+        config['ir_enabled'] = False
 
     return config
 

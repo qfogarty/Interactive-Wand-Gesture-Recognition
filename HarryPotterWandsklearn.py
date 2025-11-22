@@ -1,7 +1,6 @@
 from PIL import Image
 import numpy as np
 import joblib
-import os
 
 # === Function to perform spell prediction ===
 def predict_spell(img_path, model_path):

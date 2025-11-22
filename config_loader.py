@@ -5,7 +5,6 @@ Handles YAML config loading with validation and defaults.
 
 import yaml
 from pathlib import Path
-from typing import Any, Dict
 import sys
 import os
 
