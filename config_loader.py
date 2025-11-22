@@ -3,12 +3,13 @@ Configuration loader for Interactive Wand project.
 Handles YAML config loading with validation and defaults.
 """
 
-import yaml
-from pathlib import Path
-import sys
 import os
+import sys
+from pathlib import Path
 
-from utils.hardware_checks import check_camera_available, check_spi_device, check_gpio_access
+import yaml
+
+from utils.hardware_checks import check_camera_available, check_gpio_access, check_spi_device
 
 
 class DotDict(dict):

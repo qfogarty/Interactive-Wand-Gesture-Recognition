@@ -1,10 +1,10 @@
-import time
-import cv2
-import numpy as np
 import math
 import random
+import time
 from threading import Thread, Lock
 
+import cv2
+import numpy as np
 from picamera2 import Picamera2
 from pi5neo import Pi5Neo
 from pygame import mixer
