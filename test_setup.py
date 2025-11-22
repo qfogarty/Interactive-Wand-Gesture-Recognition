@@ -9,20 +9,7 @@ import subprocess
 from pathlib import Path
 import importlib.util
 
-# ANSI color codes
-class Colors:
-    GREEN = '\033[0;32m'
-    RED = '\033[0;31m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    BOLD = '\033[1m'
-    NC = '\033[0m'
-
-def print_header(text):
-    """Print section header"""
-    print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*60}{Colors.NC}")
-    print(f"{Colors.BOLD}{Colors.BLUE}{text}{Colors.NC}")
-    print(f"{Colors.BOLD}{Colors.BLUE}{'='*60}{Colors.NC}\n")
+from utils.terminal_ui import Colors, print_header
 
 def check_python_package(package_name, import_name=None):
     """Check if a Python package is installed"""

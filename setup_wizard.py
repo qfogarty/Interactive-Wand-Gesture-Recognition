@@ -9,22 +9,7 @@ import subprocess
 from pathlib import Path
 import sys
 
-# ANSI color codes
-class Colors:
-    BLUE = '\033[0;34m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    RED = '\033[0;31m'
-    NC = '\033[0m'  # No Color
-    BOLD = '\033[1m'
-
-def print_banner():
-    """Display welcome banner"""
-    print(f"{Colors.BLUE}╔══════════════════════════════════════════════╗{Colors.NC}")
-    print(f"{Colors.BLUE}║   Interactive Wand Setup Wizard             ║{Colors.NC}")
-    print(f"{Colors.BLUE}║   Configure Your Hardware                    ║{Colors.NC}")
-    print(f"{Colors.BLUE}╚══════════════════════════════════════════════╝{Colors.NC}")
-    print()
+from utils.terminal_ui import Colors, print_banner
 
 def ask_yes_no(question, default=True):
     """Ask a yes/no question"""
