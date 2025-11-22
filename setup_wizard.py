@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 
 from utils.terminal_ui import Colors, print_banner
+from utils.hardware_checks import check_camera_available, check_spi_device
 
 def ask_yes_no(question, default=True):
     """Ask a yes/no question"""
@@ -45,35 +46,22 @@ def ask_number(question, default, min_val=None, max_val=None):
 def test_camera():
     """Test camera availability"""
     print(f"\n{Colors.BLUE}Testing camera...{Colors.NC}")
-    try:
-        result = subprocess.run(
-            ['rpicam-hello', '--list-cameras'],
-            capture_output=True,
-            text=True,
-            timeout=3
-        )
-        if result.returncode == 0 and 'No cameras available' not in result.stderr:
-            print(f"{Colors.GREEN}✓ Camera detected{Colors.NC}")
-            return True
-        else:
-            print(f"{Colors.RED}✗ No camera detected{Colors.NC}")
-            print("  Enable camera with: sudo raspi-config")
-            return False
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        print(f"{Colors.RED}✗ Camera tools not available{Colors.NC}")
-        return False
+    success, message = check_camera_available()
+    if success:
+        print(f"{Colors.GREEN}✓{Colors.NC} {message}")
+    else:
+        print(f"{Colors.RED}✗{Colors.NC} {message}")
+    return success
 
 def test_spi():
-    """Test SPI device availability"""
+    """Test SPI interface availability"""
     print(f"\n{Colors.BLUE}Testing SPI interface...{Colors.NC}")
-    spi_device = Path('/dev/spidev0.0')
-    if spi_device.exists():
-        print(f"{Colors.GREEN}✓ SPI device found{Colors.NC}")
-        return True
+    success, message = check_spi_device()
+    if success:
+        print(f"{Colors.GREEN}✓{Colors.NC} {message}")
     else:
-        print(f"{Colors.RED}✗ SPI device not found{Colors.NC}")
-        print("  Enable SPI with: sudo raspi-config")
-        return False
+        print(f"{Colors.RED}✗{Colors.NC} {message}")
+    return success
 
 def configure_hardware():
     """Interactive hardware configuration"""

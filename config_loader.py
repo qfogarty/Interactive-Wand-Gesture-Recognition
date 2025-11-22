@@ -8,6 +8,8 @@ from pathlib import Path
 import sys
 import os
 
+from utils.hardware_checks import check_camera_available, check_spi_device, check_gpio_access
+
 
 class DotDict(dict):
     """Dict with dot notation access: config.hardware.led.count"""
@@ -104,29 +106,20 @@ class Config:
         issues = []
 
         # Check SPI device
-        spi_device = Path(self.data.hardware.led.spi_device)
-        if not spi_device.exists():
-            issues.append(f"SPI device not found: {spi_device} (Enable with raspi-config)")
-        elif not os.access(spi_device, os.R_OK | os.W_OK):
-            issues.append(f"No permission for SPI device (Add user to 'spi' group)")
+        success, message = check_spi_device(self.data.hardware.led.spi_device)
+        if not success:
+            issues.append(message)
 
         # Check camera
-        import subprocess
-        try:
-            result = subprocess.run(['rpicam-hello', '--list-cameras'],
-                                   capture_output=True, text=True, timeout=2)
-            if result.returncode != 0 or 'No cameras available' in result.stderr:
-                issues.append("Camera not detected (Enable with raspi-config)")
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            issues.append("Camera tools not available (install rpicam-apps)")
+        success, message = check_camera_available()
+        if not success:
+            issues.append(message)
 
         # Check GPIO access (for servo/IR if enabled)
         if self.data.hardware.servo.enabled or self.data.hardware.ir_illuminator.enabled:
-            gpio_path = Path('/dev/gpiomem')
-            if not gpio_path.exists():
-                issues.append("GPIO device not found")
-            elif not os.access(gpio_path, os.R_OK | os.W_OK):
-                issues.append("No GPIO permission (Add user to 'gpio' group)")
+            success, message = check_gpio_access()
+            if not success:
+                issues.append(message)
 
         return issues
 

@@ -10,6 +10,7 @@ from pathlib import Path
 import importlib.util
 
 from utils.terminal_ui import Colors, print_header
+from utils.hardware_checks import check_camera_available, check_spi_device, check_system_command
 
 def check_python_package(package_name, import_name=None):
     """Check if a Python package is installed"""
@@ -24,24 +25,14 @@ def check_python_package(package_name, import_name=None):
         print(f"{Colors.RED}✗{Colors.NC} {package_name} - Not installed")
         return False
 
-def check_system_command(command, description):
-    """Check if a system command exists"""
-    try:
-        result = subprocess.run(
-            ['which', command],
-            capture_output=True,
-            text=True,
-            timeout=2
-        )
-        if result.returncode == 0:
-            print(f"{Colors.GREEN}✓{Colors.NC} {description}")
-            return True
-        else:
-            print(f"{Colors.RED}✗{Colors.NC} {description} - Command not found: {command}")
-            return False
-    except subprocess.TimeoutExpired:
-        print(f"{Colors.RED}✗{Colors.NC} {description} - Timeout")
-        return False
+def check_system_command_with_desc(command, description):
+    """Check if a system command exists (wrapper for utils function)"""
+    success, message = check_system_command(command)
+    if success:
+        print(f"{Colors.GREEN}✓{Colors.NC} {description}")
+    else:
+        print(f"{Colors.RED}✗{Colors.NC} {description} - {message}")
+    return success
 
 def test_python_dependencies():
     """Test all required Python packages"""
@@ -77,7 +68,7 @@ def test_system_tools():
 
     results = []
     for command, description in tools:
-        results.append(check_system_command(command, description))
+        results.append(check_system_command_with_desc(command, description))
 
     return all(results)
 
@@ -138,35 +129,12 @@ def test_hardware_permissions():
 def test_camera():
     """Test camera availability"""
     print_header("Testing Camera")
-
-    try:
-        result = subprocess.run(
-            ['rpicam-hello', '--list-cameras'],
-            capture_output=True,
-            text=True,
-            timeout=3
-        )
-
-        if result.returncode == 0 and 'No cameras available' not in result.stderr:
-            # Parse camera info
-            output = result.stdout + result.stderr
-            if 'Camera Module 3' in output or 'imx708' in output:
-                print(f"{Colors.GREEN}✓{Colors.NC} Camera detected (Module 3)")
-            else:
-                print(f"{Colors.GREEN}✓{Colors.NC} Camera detected")
-            return True
-        else:
-            print(f"{Colors.RED}✗{Colors.NC} No camera detected")
-            print(f"  Enable with: {Colors.BLUE}sudo raspi-config{Colors.NC}")
-            return False
-
-    except subprocess.TimeoutExpired:
-        print(f"{Colors.YELLOW}⚠{Colors.NC}  Camera test timed out")
-        return False
-    except FileNotFoundError:
-        print(f"{Colors.RED}✗{Colors.NC} rpicam-hello not found")
-        print(f"  Install with: {Colors.BLUE}sudo apt install rpicam-apps{Colors.NC}")
-        return False
+    success, message = check_camera_available()
+    if success:
+        print(f"{Colors.GREEN}✓{Colors.NC} {message}")
+    else:
+        print(f"{Colors.RED}✗{Colors.NC} {message}")
+    return success
 
 def test_spi_device():
     """Test SPI device availability"""
@@ -175,25 +143,16 @@ def test_spi_device():
     try:
         from config_loader import get_config
         config = get_config()
-        spi_device = Path(config.hardware.led.spi_device)
+        spi_device_path = config.hardware.led.spi_device
     except:
-        spi_device = Path('/dev/spidev0.0')
+        spi_device_path = '/dev/spidev0.0'
 
-    if spi_device.exists():
-        import os
-        if os.access(spi_device, os.R_OK | os.W_OK):
-            print(f"{Colors.GREEN}✓{Colors.NC} SPI device accessible: {spi_device}")
-            return True
-        else:
-            print(f"{Colors.RED}✗{Colors.NC} SPI device exists but no permission: {spi_device}")
-            print(f"  Fix with: {Colors.BLUE}sudo usermod -a -G spi $USER{Colors.NC}")
-            print(f"  Then reboot")
-            return False
+    success, message = check_spi_device(spi_device_path)
+    if success:
+        print(f"{Colors.GREEN}✓{Colors.NC} {message}")
     else:
-        print(f"{Colors.RED}✗{Colors.NC} SPI device not found: {spi_device}")
-        print(f"  Enable with: {Colors.BLUE}sudo raspi-config{Colors.NC}")
-        print(f"  3 Interface Options → I4 SPI → Enable")
-        return False
+        print(f"{Colors.RED}✗{Colors.NC} {message}")
+    return success
 
 def test_led_strip():
     """Test LED strip communication"""
