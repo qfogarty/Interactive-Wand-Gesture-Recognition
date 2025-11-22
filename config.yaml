@@ -1,0 +1,61 @@
+# Interactive Wand Configuration
+# Edit these values to customize your setup
+
+project:
+  name: "Interactive Wand"
+  version: "1.0.0"
+
+hardware:
+  # LED Strip Configuration
+  led:
+    count: 30
+    timing: 800  # 800 for WS2812B
+    spi_device: "/dev/spidev0.0"
+    gpio_pin: 19  # GPIO10/MOSI for Pi 5
+
+  # Camera Configuration
+  camera:
+    resolution: [640, 480]
+    exposure_time: 8000  # microseconds
+    analogue_gain: 6.0
+    brightness: -0.3
+
+  # Servo Configuration (optional)
+  servo:
+    enabled: false  # Set to true if using servo
+    gpio_pin: 12
+    min_pulse_width: 0.0005
+    max_pulse_width: 0.0025
+
+  # IR Illuminator (optional)
+  ir_illuminator:
+    enabled: false  # Set to true if using PWM control
+    gpio_pin: 18
+    pwm_frequency: 1000
+
+detection:
+  # Blob Detector Parameters
+  blob_detector:
+    min_threshold: 180
+    max_threshold: 255
+    min_area: 15
+    max_area: 500
+    min_circularity: 0.75
+    min_inertia_ratio: 0.3
+
+  # Gesture Detection Thresholds
+  gesture:
+    presence_duration: 0.6  # seconds
+    stillness_duration: 1.0  # seconds
+    movement_threshold: 6  # pixels
+
+audio:
+  background_volume: 0.6  # 0.0 to 1.0
+  spell_volume: 1.0
+
+paths:
+  # Relative paths from project root
+  sounds_dir: "Sounds"
+  model_file: "new_custom_classifier.pkl"
+  lastframe_file: "lastframe.jpg"
+  dataset_dir: "DatasetCreation"

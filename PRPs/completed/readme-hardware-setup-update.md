@@ -1,11 +1,170 @@
-# Interactive Wand
+# PRP: README Hardware Setup Update (No Servo Configuration)
 
-A personal passion project recreating the magic of spellcasting through computer vision, machine learning, and themed show control — all powered by a Raspberry Pi 5 and written entirely in Python.
+## 📋 Feature Overview
 
-**Webpage Link:** https://andrewcongdon14.wixsite.com/andrew-congdon/interactive-wand
+Update the Interactive Wand Gesture Recognition project README to provide comprehensive hardware setup instructions for users without servo motors. Focus on documenting setup for Raspberry Pi 5 with Camera Module 3 NoIR, WS2812B LED strips, and IR illuminator.
 
----
+**Target User Configuration:**
+- Raspberry Pi 5
+- Raspberry Pi Camera Module 3 NoIR (Wide Angle)
+- WS2812B IC Independent Control DC5V LED Strip (addressable RGB)
+- Elecbee 42×IR LED Board (850nm, DC12V) for night vision
+- **NO servo motor**
 
+## 🎯 Success Criteria
+
+- [ ] README contains complete hardware requirements section
+- [ ] README contains detailed hardware setup instructions for each component
+- [ ] README contains software installation and configuration guide
+- [ ] README contains getting started guide for first-time users
+- [ ] README contains troubleshooting section
+- [ ] Servo motor marked as optional throughout documentation
+- [ ] All hardware components have wiring diagrams or references
+- [ ] External research documents are properly referenced
+- [ ] Documentation is clear enough for reproduction without code inspection
+
+## 📚 Context & Current State
+
+### Current README State
+The existing README (109 lines) focuses on project description, features, and technical implementation but **lacks hardware setup instructions**. It mentions:
+- Servo-based box movement (line 20)
+- Servo logic as a key feature (line 91)
+- Technologies used but no setup guide
+
+**File:** `README.md`
+
+### Current Code Dependencies
+The main script `HarryPotterWandcv.py` has servo imports and usage:
+- Line 11: `from gpiozero import Servo`
+- Line 40-43: Servo initialization
+- Line 112-151: `move_servo_smoothly()` function
+- Line 178, 183: Servo movement calls
+- Line 301: Servo cleanup
+
+**Decision:** Keep code as-is (servo optional) but update README to clarify servo is optional and provide instructions for both scenarios.
+
+### Existing Project Structure
+```
+Interactive-Wand-Gesture-Recognition/
+├── README.md                              # Target file
+├── HarryPotterWandcv.py                   # Main runtime (has servo code)
+├── HarryPotterWandsklearn.py              # SVM classifier
+├── new_custom_classifier.pkl              # Pre-trained model
+├── lastframe.jpg                          # Debug output
+├── Sounds/                                # Audio files
+├── DatasetCreation/                       # Training scripts
+├── WS2812B_RaspberryPi5_Integration_Report.md      # Research doc
+├── CAMERA_MODULE_3_NOIR_RESEARCH.md                # Research doc
+├── IR_ILLUMINATOR_INTEGRATION_RESEARCH.md          # Research doc
+└── WIRING_DIAGRAMS.md                              # Research doc
+```
+
+## 🔬 Research References
+
+Four comprehensive research documents have been created with 150+ source URLs:
+
+### 1. WS2812B LED Integration
+**File:** `WS2812B_RaspberryPi5_Integration_Report.md`
+**Key Findings:**
+- Raspberry Pi 5 requires SPI-based control (GPIO10/Pin 19), NOT GPIO18 PWM
+- Pi5Neo library recommended for easiest setup
+- External 5V power supply required (30 LEDs ≈ 1.8A)
+- Common ground connection critical
+- 470Ω resistor + 1000µF capacitor for protection
+
+**Critical Gotcha:** Most Pi 4 tutorials don't work on Pi 5 due to RP1 chipset changes
+
+### 2. Camera Module 3 NoIR Setup
+**File:** `CAMERA_MODULE_3_NOIR_RESEARCH.md`
+**Key Findings:**
+- Must use 22-pin CSI connector (different from Pi 4)
+- libcamera/picamera2 required (legacy stack not supported)
+- Tuning file: `/usr/share/libcamera/ipa/rpi/pisp/imx708_wide_noir.json`
+- Optimal settings: 640×480 @ 60 FPS, ExposureTime: 8000µs, Gain: 6.0
+- NoIR requires external IR illumination
+
+**Critical Gotcha:** Auto-exposure doesn't work well for IR tracking; manual settings required
+
+### 3. IR Illuminator Integration
+**File:** `IR_ILLUMINATOR_INTEGRATION_RESEARCH.md`
+**Key Findings:**
+- 12V DC power supply needed (2A minimum)
+- Logic-level MOSFET control circuit required (IRLZ34N recommended)
+- 850nm optimal for NoIR camera sensitivity
+- Ring/co-axial mounting recommended
+- Eye-safe at >1m distance (IEC 62471 compliant)
+
+**Critical Gotcha:** Must use MOSFET (not relay) for PWM brightness control
+
+### 4. Wiring Diagrams
+**File:** `WIRING_DIAGRAMS.md`
+**Contains:** 12 detailed ASCII circuit diagrams including:
+- MOSFET control circuit
+- Complete system wiring
+- Breadboard layouts
+- Raspberry Pi 5 GPIO pinout
+- Camera mounting configurations
+- Troubleshooting visual guides
+
+## 🏗️ Implementation Blueprint
+
+### Pseudocode Approach
+```
+1. ADD new section "Hardware Requirements" after line 7
+   - List all components with specifications
+   - Mark servo as OPTIONAL
+   - Include links to purchase (if applicable)
+
+2. ADD new section "Hardware Setup"
+   - Subsection: Raspberry Pi 5 preparation
+   - Subsection: WS2812B LED wiring
+   - Subsection: Camera Module 3 NoIR installation
+   - Subsection: IR illuminator setup
+   - Subsection: (Optional) Servo motor setup
+   - Each with step-by-step instructions + diagrams
+
+3. ADD new section "Software Setup"
+   - OS installation (Raspberry Pi OS Bookworm)
+   - Enable SPI interface for LEDs
+   - Enable Camera interface
+   - Python dependencies installation
+   - Configuration file setup
+
+4. ADD new section "Getting Started"
+   - First run guide
+   - Camera calibration
+   - Blob detector tuning
+   - Testing checklist
+
+5. ADD new section "Troubleshooting"
+   - Common issues from research
+   - Solutions with references
+
+6. UPDATE "Technologies Used" section (line 29)
+   - Mark servo as optional
+   - Add Pi 5 specific notes
+   - Update library versions
+
+7. UPDATE "Show Control Highlights" section (line 89)
+   - Mark servo logic as optional
+   - Emphasize LED and audio still work
+
+8. UPDATE "Project Summary" section (line 9)
+   - Clarify hardware flexibility
+
+9. ADD "References" section at end
+   - Link to 4 research documents
+```
+
+## ✅ Implementation Tasks
+
+Execute these tasks in order:
+
+### TASK 1: Create Hardware Requirements Section
+**Location:** After line 7 (after webpage link, before "Project Summary")
+**Action:** INSERT new section
+
+```markdown
 ## 🛠️ Hardware Requirements
 
 ### Required Components
@@ -40,96 +199,13 @@ A personal passion project recreating the magic of spellcasting through computer
 - **Wand Construction**: Any IR LED (850nm) attached to stick/wand with power works as tracking point
 
 ---
-
-## 🚀 Quick Start (Automated Installation)
-
-**NEW!** Automated installation script for hassle-free setup on Raspberry Pi 5.
-
-### Prerequisites
-1. Fresh Raspberry Pi OS (Bookworm or newer) installed and updated
-2. Hardware connected according to wiring diagrams
-3. Internet connection for downloading dependencies
-
-### One-Command Installation
-
-```bash
-cd /path/to/Interactive-Wand-Gesture-Recognition
-./install.sh
 ```
 
-The installer will:
-- ✅ Install all system dependencies (OpenCV, NumPy, scikit-learn, etc.)
-- ✅ Install Python packages (pi5neo, picamera2, pygame, etc.)
-- ✅ Enable hardware interfaces (SPI, Camera, GPIO)
-- ✅ Configure user permissions
-- ✅ Validate configuration and assets
-- ✅ Create necessary directories
+### TASK 2: Create Hardware Setup Section
+**Location:** After new "Hardware Requirements" section
+**Action:** INSERT new section
 
-### Interactive Setup Wizard
-
-After installation, run the setup wizard to configure your hardware:
-
-```bash
-python3 setup_wizard.py
-```
-
-The wizard will guide you through:
-- 🔧 LED strip configuration (count, timing, SPI device)
-- 📷 Camera settings (resolution, exposure, gain)
-- 🎛️ Servo setup (optional - disabled by default)
-- 💡 IR illuminator configuration
-- 🎯 Blob detector tuning
-- 🎵 Audio volume settings
-
-All settings are saved to `config.yaml` and can be edited manually later.
-
-### Configuration Management
-
-All project paths and hardware settings are now centralized in `config.yaml`:
-
-```yaml
-hardware:
-  led:
-    count: 30              # Number of LEDs
-    spi_device: "/dev/spidev0.0"
-  servo:
-    enabled: false         # Set to true if you have a servo
-  camera:
-    resolution: [640, 480]
-    exposure_time: 8000
-```
-
-**No more hardcoded paths!** The system automatically detects project location using Python's `pathlib`.
-
-### Testing Your Setup
-
-Validate everything works correctly:
-
-```bash
-python3 test_setup.py
-```
-
-This will check:
-- ✓ Hardware permissions (SPI, Camera, GPIO)
-- ✓ Required files (sounds, model, config)
-- ✓ Python dependencies
-- ✓ Camera detection
-- ✓ LED strip communication
-
-### Running the Wand Tracker
-
-```bash
-python3 HarryPotterWandcv.py
-```
-
-**That's it!** No manual path editing required.
-
-### Manual Installation
-
-If you prefer manual setup or need more control, see the detailed instructions in the sections below.
-
----
-
+```markdown
 ## 🔌 Hardware Setup
 
 Detailed setup instructions for each component. **See** `WIRING_DIAGRAMS.md` for visual circuit diagrams.
@@ -303,10 +379,14 @@ ir_led.value = 0.5  # 50% brightness
 **Note:** The existing code in `HarryPotterWandcv.py` will work with this setup. If you skip servo, comment out servo-related lines (11, 40-43, 112-151, 178, 183, 301) or the script will error on servo import.
 
 ---
+```
 
-## 💻 Software Setup (Manual Method)
+### TASK 3: Create Software Setup Section
+**Location:** After "Hardware Setup" section
+**Action:** INSERT new section
 
-> **💡 TIP:** For automated installation, see the [Quick Start (Automated Installation)](#-quick-start-automated-installation) section above. The manual method below is provided for advanced users who want full control over the installation process.
+```markdown
+## 💻 Software Setup
 
 ### 1. Install Python Dependencies
 
@@ -340,18 +420,11 @@ Or download and extract ZIP to `/home/<username>/WandProject`
 
 ### 3. Configure File Paths
 
-> **⚠️ DEPRECATED:** Manual path configuration is no longer required! The project now uses dynamic path resolution via `pathlib` and `config.yaml`. If you used the automated installer or `setup_wizard.py`, skip this step.
+Edit `HarryPotterWandcv.py` line 18 to match your installation path:
 
-For legacy/manual setup, edit `config.yaml` to customize paths:
-
-```yaml
-paths:
-  sounds_dir: "Sounds"
-  model_file: "new_custom_classifier.pkl"
-  dataset_dir: "DatasetCreation"
+```python
+PROJECT_DIR = "/home/<your-username>/WandProject"
 ```
-
-The system automatically resolves all paths relative to the project root.
 
 ### 4. Test Components Individually
 
@@ -410,7 +483,13 @@ params.minCircularity = 0.75  # Lower if wand tip not perfectly round
 5. Check "Gray Feed" window to see what camera sees
 
 ---
+```
 
+### TASK 4: Create Getting Started Section
+**Location:** After "Software Setup" section
+**Action:** INSERT new section
+
+```markdown
 ## 🚀 Getting Started
 
 ### First Run
@@ -477,10 +556,14 @@ If you want to add new spells or retrain existing ones:
 
 See existing dataset in `DatasetCreation/` for reference gesture shapes.
 
-**📘 For detailed instructions on adding custom spells with different LED colors, see [docs/TRAINING_CUSTOM_SPELLS.md](docs/TRAINING_CUSTOM_SPELLS.md)**
-
 ---
+```
 
+### TASK 5: Create Troubleshooting Section
+**Location:** After "Getting Started" section, before "Technologies Used"
+**Action:** INSERT new section
+
+```markdown
 ## 🔧 Troubleshooting
 
 ### LED Strip Issues
@@ -534,29 +617,13 @@ See existing dataset in `DatasetCreation/` for reference gesture shapes.
 | High CPU usage | • Reduce camera resolution (edit line 33: 320x240)<br>• Increase frame processing delay<br>• Close unnecessary applications |
 
 ---
+```
 
-## 📖 Project Summary
+### TASK 6: Update Technologies Used Section
+**Location:** Lines 29-38 (existing "Technologies Used" section)
+**Action:** REPLACE with updated version
 
-This wand system detects spellcasting gestures in real-time using OpenCV and an infrared-lit wand. It recognizes and responds to two specific spells:
-
-- **"Alohamora"** — triggers warm purple fire LED animation with sound effect
-- **"Colloportus"** — triggers cool blue flame LED animation with sound effect
-
-The system features:
-
-- Real-time IR blob tracking and wand path tracing using NoIR camera
-- Spell recognition using a trained SVM classifier (99%+ accuracy)
-- Custom LED animations tied to spell type (WS2812B addressable RGB)
-- Themed sound effects with seamless background music
-- Filtering to prevent false or accidental spell detection
-- *(Optional)* Servo-based physical box movement for opening/closing effect
-
-**Hardware Flexibility:** System designed to work with or without servo motor. Core functionality (tracking, recognition, LEDs, audio) operates independently of physical actuation components.
-
-All code runs on-device using multithreaded Python on Raspberry Pi 5.
-
----
-
+```markdown
 ## 🔧 Technologies Used
 
 - **Hardware:**
@@ -587,58 +654,14 @@ All code runs on-device using multithreaded Python on Raspberry Pi 5.
 
 - **Performance:**
   - Multi-threaded Python for concurrent vision, hardware, and audio processing
-  - Lock-based prediction queue to prevent race conditions  
+  - Lock-based prediction queue to prevent race conditions
+```
 
----
+### TASK 7: Update Show Control Highlights Section
+**Location:** Lines 89-95 (existing "Show Control Highlights" section)
+**Action:** REPLACE with updated version
 
-## Spellcasting Flow
-
-![Wand (1)](https://github.com/user-attachments/assets/949b9146-4611-4c83-a0c0-e3fd67cafff5)
-
----
-
-## File Overview
-
-**HarryPotterWandcv.py**
-
-↳ Main runtime script: blob detection, trace drawing, spell prediction, and show control.
-
-**HarryPotterWandsklearn.py**
-
-↳ Used to run the pre-trained SVM classifier concurrently.
-
-**new_custom_classifier.pkl**
-
-↳ Pre-trained model for classifying spells based on trace shape.
-
-**lastframe.jpg**
-
-↳ Latest wand trace visualization, saved for debugging or training.
-
-**Sounds/**
-
-↳ Sound effects and background music used in spellcasting.
-
-**DatasetCreation/**
-
-↳ Python for drawing custom training data, converting that training data into the correct format, training the SVM classifier to produce the .pkl file
-
----
-
-## ML & Classification
-
-I created a custom dataset by collecting over 400 wand path traces drawn in-air. These were:
-
-- Centered and normalized
-- Smoothed and resampled
-- Converted to vector features
-
-I used `GridSearchCV` to tune a Support Vector Machine (SVM) classifier that could distinguish between gestures with over 99% accuracy.
-
-The classifier runs on-device in real time with minimal latency.
-
----
-
+```markdown
 ## 🎨 Show Control Highlights
 
 - **LED FX** – Custom "fire" animations with randomized color flickers using `Pi5Neo` SPI interface
@@ -647,22 +670,40 @@ The classifier runs on-device in real time with minimal latency.
 - **IR Tracking** – Blob detection optimized for 850nm IR LED visibility with NoIR camera
 - **Servo Logic** *(Optional)* – Smooth actuation of box lid using hardware PWM and `pigpio` (can be disabled)
 
-**Note:** System works fully without servo motor - LED animations and spell recognition function independently.  
+**Note:** System works fully without servo motor - LED animations and spell recognition function independently.
+```
 
----
+### TASK 8: Update Project Summary Section
+**Location:** Lines 9-26 (existing "Project Summary" section)
+**Action:** REPLACE with updated version
 
-## 🎥 Demo Video
+```markdown
+## 📖 Project Summary
 
-[![Watch the video](https://img.youtube.com/vi/IFpQFHPK7W4/0.jpg)](https://www.youtube.com/watch?v=IFpQFHPK7W4)
+This wand system detects spellcasting gestures in real-time using OpenCV and an infrared-lit wand. It recognizes and responds to two specific spells:
 
-*Click the image to watch the full demo.*
+- **"Alohamora"** — triggers warm purple fire LED animation with sound effect
+- **"Colloportus"** — triggers cool blue flame LED animation with sound effect
 
----
+The system features:
 
-## Final Thoughts
+- Real-time IR blob tracking and wand path tracing using NoIR camera
+- Spell recognition using a trained SVM classifier (99%+ accuracy)
+- Custom LED animations tied to spell type (WS2812B addressable RGB)
+- Themed sound effects with seamless background music
+- Filtering to prevent false or accidental spell detection
+- *(Optional)* Servo-based physical box movement for opening/closing effect
 
-This was one of the most technically rewarding projects I've created — combining embedded hardware, computer vision, machine learning, and interactive storytelling. It's a small glimpse into how software and show control can bring magic to life.
+**Hardware Flexibility:** System designed to work with or without servo motor. Core functionality (tracking, recognition, LEDs, audio) operates independently of physical actuation components.
 
+All code runs on-device using multithreaded Python on Raspberry Pi 5.
+```
+
+### TASK 9: Add References Section
+**Location:** After "Final Thoughts" section (end of README)
+**Action:** INSERT new section
+
+```markdown
 ---
 
 ## 📚 Technical References
@@ -677,10 +718,138 @@ This project includes comprehensive research documentation for hardware setup:
 
 - **[WIRING_DIAGRAMS.md](WIRING_DIAGRAMS.md)** - Visual ASCII circuit diagrams for all hardware components including MOSFET circuits, breadboard layouts, and GPIO pinouts (12 detailed diagrams)
 
-### Usage & Customization Guides
-
-- **[docs/TRAINING_CUSTOM_SPELLS.md](docs/TRAINING_CUSTOM_SPELLS.md)** - Complete guide for training new spell gestures and creating custom LED color animations
-
 These documents contain 150+ curated URLs to official documentation, community forums, academic papers, and technical guides.
 
 ---
+```
+
+## 🧪 Validation Gates
+
+### Automated Checks
+
+```bash
+# 1. Python syntax validation
+python3 -m py_compile HarryPotterWandcv.py
+python3 -m py_compile HarryPotterWandsklearn.py
+
+# Expected: No output = success
+
+# 2. Check README sections exist
+grep -q "## 🛠️ Hardware Requirements" README.md && echo "✓ Hardware Requirements section present" || echo "✗ Missing Hardware Requirements"
+grep -q "## 🔌 Hardware Setup" README.md && echo "✓ Hardware Setup section present" || echo "✗ Missing Hardware Setup"
+grep -q "## 💻 Software Setup" README.md && echo "✓ Software Setup section present" || echo "✗ Missing Software Setup"
+grep -q "## 🚀 Getting Started" README.md && echo "✓ Getting Started section present" || echo "✗ Missing Getting Started"
+grep -q "## 🔧 Troubleshooting" README.md && echo "✓ Troubleshooting section present" || echo "✗ Missing Troubleshooting"
+grep -q "## 📚 Technical References" README.md && echo "✓ References section present" || echo "✗ Missing References"
+
+# 3. Verify servo marked as optional
+grep -q "(Optional)" README.md && echo "✓ Optional markers present" || echo "✗ Missing optional markers"
+grep -qi "servo.*optional" README.md && echo "✓ Servo explicitly marked optional" || echo "✗ Servo not marked optional"
+
+# 4. Verify research doc references exist
+grep -q "WS2812B_RaspberryPi5_Integration_Report.md" README.md && echo "✓ LED research referenced" || echo "✗ LED research not referenced"
+grep -q "CAMERA_MODULE_3_NOIR_RESEARCH.md" README.md && echo "✓ Camera research referenced" || echo "✗ Camera research not referenced"
+grep -q "IR_ILLUMINATOR_INTEGRATION_RESEARCH.md" README.md && echo "✓ IR research referenced" || echo "✗ IR research not referenced"
+grep -q "WIRING_DIAGRAMS.md" README.md && echo "✓ Wiring diagrams referenced" || echo "✗ Wiring diagrams not referenced"
+
+# 5. Check that old servo references updated
+! grep -q "Servo-based box movement$" README.md && echo "✓ Old servo description updated" || echo "✗ Old servo description still exists"
+
+# 6. Verify all research documents exist
+ls WS2812B_RaspberryPi5_Integration_Report.md >/dev/null 2>&1 && echo "✓ WS2812B doc exists" || echo "✗ WS2812B doc missing"
+ls CAMERA_MODULE_3_NOIR_RESEARCH.md >/dev/null 2>&1 && echo "✓ Camera doc exists" || echo "✗ Camera doc missing"
+ls IR_ILLUMINATOR_INTEGRATION_RESEARCH.md >/dev/null 2>&1 && echo "✓ IR doc exists" || echo "✗ IR doc missing"
+ls WIRING_DIAGRAMS.md >/dev/null 2>&1 && echo "✓ Wiring doc exists" || echo "✗ Wiring doc missing"
+```
+
+### Manual Validation Checklist
+
+- [ ] README formatting renders correctly on GitHub
+- [ ] All tables display properly
+- [ ] All code blocks have correct syntax highlighting
+- [ ] All links to research documents work
+- [ ] Hardware requirements table is complete
+- [ ] Wiring instructions are clear and unambiguous
+- [ ] Software setup commands are copy-paste ready
+- [ ] Getting Started guide is actionable for beginners
+- [ ] Troubleshooting covers issues from research findings
+- [ ] Technologies Used section accurately reflects current setup
+- [ ] No broken internal references or incorrect line numbers
+- [ ] Emojis render correctly (optional - aesthetic only)
+
+### User Acceptance Criteria
+
+Can a user with the specified hardware (Pi 5, Camera Module 3 NoIR, WS2812B LEDs, IR illuminator) successfully:
+- [ ] Understand what components to purchase
+- [ ] Wire all hardware without additional research
+- [ ] Install and configure software
+- [ ] Run the application successfully
+- [ ] Troubleshoot common issues independently
+- [ ] Understand that servo is optional
+
+## 🎯 Implementation Success Metrics
+
+### Primary Metrics
+- **Completeness:** README contains all 9 sections added/updated
+- **Accuracy:** Technical information matches research documents
+- **Usability:** Instructions are actionable without code inspection
+- **Clarity:** Servo optional status is unambiguous
+
+### Quality Score: **9/10**
+
+**Confidence Level:** High - One-pass implementation highly likely to succeed
+
+**Reasoning:**
+- ✅ Comprehensive research completed (150+ sources)
+- ✅ Clear task breakdown with exact locations
+- ✅ All content pre-written and ready to insert
+- ✅ Validation gates are executable and comprehensive
+- ✅ Success criteria are measurable
+- ⚠️ Minor uncertainty: User's specific wiring preferences may require iteration
+
+**Potential Challenges:**
+1. README may become very long (500+ lines) - might need TOC
+2. User may want different section ordering
+3. Emoji rendering varies across platforms (non-critical)
+
+**Mitigation:**
+- Add table of contents if README exceeds 400 lines
+- Offer to reorganize sections based on user feedback
+- Emojis are aesthetic only, use standard markdown headers as fallback
+
+## 📝 Additional Notes
+
+### Code Modification Considerations
+
+**Not included in this PRP:** Modifying `HarryPotterWandcv.py` to make servo truly optional at runtime.
+
+**If desired**, create a follow-up PRP for:
+- Add configuration file (`config.ini`) for hardware options
+- Wrap servo code in conditional checks: `if SERVO_ENABLED:`
+- Gracefully handle missing servo hardware
+- Add command-line flags: `--no-servo`
+
+Current approach: Document servo as optional, provide comment-out instructions
+
+### Maintenance Recommendations
+
+1. **Keep research docs updated** as libraries evolve (esp. Pi5Neo, picamera2)
+2. **Version pin dependencies** if reliability issues occur
+3. **Add photos/videos** of hardware setup in future iterations
+4. **Consider Fritzing diagrams** as alternative to ASCII art
+
+### Extensibility
+
+This documentation structure supports future additions:
+- Additional spell gestures
+- Multi-wand tracking
+- Network-enabled show control
+- Integration with home automation (MQTT, Home Assistant)
+- Different LED patterns and animations
+
+---
+
+**PRP Created:** 2025-11-22
+**Author:** Claude Code (via /prp-base-create)
+**Research Sources:** 150+ URLs across 4 comprehensive documents
+**Target Platform:** Raspberry Pi 5 + Bookworm OS + Python 3.9+

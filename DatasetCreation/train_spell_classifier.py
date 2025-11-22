@@ -6,10 +6,26 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
+from pathlib import Path
+import sys
+
+# === Load configuration or use dynamic paths ===
+try:
+    # Add parent directory to path to import config_loader
+    parent_dir = Path(__file__).parent.parent.resolve()
+    sys.path.insert(0, str(parent_dir))
+    from config_loader import get_config
+    config = get_config()
+    dataset_dir = Path(config.paths.dataset_dir)
+    output_path = config.paths.model
+except (ImportError, SystemExit):
+    # Fallback to dynamic path resolution
+    dataset_dir = Path(__file__).parent.resolve()
+    output_path = dataset_dir.parent / "new_custom_classifier.pkl"
 
 # === Load saved training data ===
-X = np.load("X_spells.npy")  # shape: (num_samples, 784)
-y = np.load("y_spells.npy")  # labels: 0 = open, 1 = close
+X = np.load(str(dataset_dir / "X_spells.npy"))  # shape: (num_samples, 784)
+y = np.load(str(dataset_dir / "y_spells.npy"))  # labels: 0 = open, 1 = close
 
 # === Split into training and testing sets ===
 X_train, X_test, y_train, y_test = train_test_split(
@@ -44,5 +60,5 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
 # === Save the best model ===
-joblib.dump(grid.best_estimator_, "new_custom_classifier.pkl", compress=3)
-print("Model saved as O_P_classifier.pkl")
+joblib.dump(grid.best_estimator_, str(output_path), compress=3)
+print(f"Model saved as {output_path}")

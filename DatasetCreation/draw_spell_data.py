@@ -1,9 +1,23 @@
 import cv2
 import numpy as np
 import os
+from pathlib import Path
+import sys
+
+# === Load configuration or use dynamic paths ===
+try:
+    # Add parent directory to path to import config_loader
+    parent_dir = Path(__file__).parent.parent.resolve()
+    sys.path.insert(0, str(parent_dir))
+    from config_loader import get_config
+    config = get_config()
+    dataset_dir = Path(config.paths.dataset_dir)
+except (ImportError, SystemExit):
+    # Fallback to dynamic path resolution
+    dataset_dir = Path(__file__).parent.resolve()
 
 # === Configuration ===
-SAVE_DIR = "spells_dataset"         # Directory where spell drawings will be saved
+SAVE_DIR = str(dataset_dir / "spells_dataset")  # Directory where spell drawings will be saved
 LABEL = "close"                     # Label for the current set of drawings ("open" or "close")
 IMG_SIZE = 28                       # Target image size (28x28 pixels)
 

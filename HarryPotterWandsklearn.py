@@ -20,9 +20,18 @@ def predict_spell(img_path, model_path):
 
 # === Script entry point (used when run directly) ===
 if __name__ == "__main__":
-    # Define the image and model file paths
-    img_path = "/home/gloworm72/WandProject/lastframe.jpg"
-    model_path = "/home/gloworm72/WandProject/new_custom_classifier.pkl"
+    # Load configuration or use dynamic paths
+    try:
+        from config_loader import get_config
+        config = get_config()
+        img_path = str(config.paths.lastframe)
+        model_path = str(config.paths.model)
+    except (ImportError, SystemExit):
+        # Fallback to dynamic path resolution
+        from pathlib import Path
+        project_root = Path(__file__).parent.resolve()
+        img_path = str(project_root / "lastframe.jpg")
+        model_path = str(project_root / "new_custom_classifier.pkl")
 
     # Call the prediction function and print the result
     result = predict_spell(img_path, model_path)

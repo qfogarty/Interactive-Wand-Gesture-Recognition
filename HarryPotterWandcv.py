@@ -8,24 +8,46 @@ import math
 import random
 from threading import Thread, Lock
 
-from gpiozero import Servo
-from gpiozero.pins.pigpio import PiGPIOFactory
 from picamera2 import Picamera2
 from pi5neo import Pi5Neo
 from pygame import mixer
 
-# === Setup Paths and Audio ===
-PROJECT_DIR = "/home/gloworm72/WandProject"
-LASTFRAME_PATH = os.path.join(PROJECT_DIR, "lastframe.jpg")
-MODEL_PATH = os.path.join(PROJECT_DIR, "new_custom_classifier.pkl")
+# Load configuration
+try:
+    from config_loader import get_config
+    config = get_config()
+    USE_CONFIG = True
+except (ImportError, SystemExit):
+    # Fallback to hardcoded paths if config not available
+    print("WARNING: config.yaml not found, using hardcoded paths")
+    USE_CONFIG = False
+
+# === Configuration and Paths ===
+if USE_CONFIG:
+    PROJECT_ROOT = config.paths.project_root
+    LASTFRAME_PATH = config.paths.lastframe
+    MODEL_PATH = config.paths.model
+else:
+    # Backward compatibility fallback
+    from pathlib import Path
+    PROJECT_ROOT = Path(__file__).parent.resolve()
+    LASTFRAME_PATH = PROJECT_ROOT / "lastframe.jpg"
+    MODEL_PATH = PROJECT_ROOT / "new_custom_classifier.pkl"
 
 # Initialize audio and load sound effects/music
 mixer.init()
-ALOHA_SOUND = mixer.Sound(os.path.join(PROJECT_DIR, "Sounds", "Alohamora.mp3"))
-COLLO_SOUND = mixer.Sound(os.path.join(PROJECT_DIR, "Sounds", "Colloportus.mp3"))
-BACKGROUND_TRACK = os.path.join(PROJECT_DIR, "Sounds", "loop.mp3")
+if USE_CONFIG:
+    ALOHA_SOUND = mixer.Sound(str(config.paths.sounds / "Alohamora.mp3"))
+    COLLO_SOUND = mixer.Sound(str(config.paths.sounds / "Colloportus.mp3"))
+    BACKGROUND_TRACK = str(config.paths.sounds / "loop.mp3")
+    mixer.music.set_volume(config.audio.background_volume)
+else:
+    ALOHA_SOUND = mixer.Sound(str(PROJECT_ROOT / "Sounds" / "Alohamora.mp3"))
+    COLLO_SOUND = mixer.Sound(str(PROJECT_ROOT / "Sounds" / "Colloportus.mp3"))
+    BACKGROUND_TRACK = str(PROJECT_ROOT / "Sounds" / "loop.mp3")
+    mixer.music.set_volume(0.6)
+
 mixer.music.load(BACKGROUND_TRACK)
-mixer.music.set_volume(0.6)
 mixer.music.play(-1)
 
 # === Camera Initialization ===
@@ -36,29 +58,66 @@ picam2.configure("preview")
 picam2.start()
 time.sleep(1)  # Allow camera to warm up
 
-# === Servo Setup ===
-servo = Servo(12, min_pulse_width=0.0005, max_pulse_width=0.0025, initial_value=None)
-servo.min()
-time.sleep(1.5)
-servo.detach()
+# === Servo Setup (Optional) ===
+servo = None
+servo_enabled = config.hardware.servo.enabled if USE_CONFIG else False
+
+if servo_enabled:
+    try:
+        from gpiozero import Servo
+        from gpiozero.pins.pigpio import PiGPIOFactory
+
+        factory = PiGPIOFactory()
+        servo = Servo(
+            config.hardware.servo.gpio_pin,
+            pin_factory=factory,
+            min_pulse_width=config.hardware.servo.min_pulse_width,
+            max_pulse_width=config.hardware.servo.max_pulse_width,
+            initial_value=None
+        )
+        servo.min()
+        time.sleep(1.5)
+        servo.detach()
+        print("✓ Servo initialized")
+    except Exception as e:
+        print(f"WARNING: Servo initialization failed: {e}")
+        servo = None
+else:
+    print("Servo disabled in config")
 
 # === LED Strip Initialization ===
-neo = Pi5Neo('/dev/spidev0.0', 30, 800)
+if USE_CONFIG:
+    neo = Pi5Neo(
+        config.hardware.led.spi_device,
+        config.hardware.led.count,
+        config.hardware.led.timing
+    )
+else:
+    neo = Pi5Neo('/dev/spidev0.0', 30, 800)
 num_leds = neo.num_leds
 
 # === Blob Detector Configuration ===
 params = cv2.SimpleBlobDetector_Params()
-params.minThreshold = 180
-params.maxThreshold = 255
+if USE_CONFIG:
+    params.minThreshold = config.detection.blob_detector.min_threshold
+    params.maxThreshold = config.detection.blob_detector.max_threshold
+    params.minArea = config.detection.blob_detector.min_area
+    params.maxArea = config.detection.blob_detector.max_area
+    params.minCircularity = config.detection.blob_detector.min_circularity
+    params.minInertiaRatio = config.detection.blob_detector.min_inertia_ratio
+else:
+    params.minThreshold = 180
+    params.maxThreshold = 255
+    params.minArea = 15
+    params.maxArea = 500
+    params.minCircularity = 0.75
+    params.minInertiaRatio = 0.3
+
 params.filterByColor = 1
 params.blobColor = 255
 params.filterByArea = 1
-params.minArea = 15
-params.maxArea = 500
 params.filterByCircularity = 1
-params.minCircularity = 0.75
 params.filterByInertia = 1
-params.minInertiaRatio = 0.3
 # Creates the configured blob detector
 detector = cv2.SimpleBlobDetector_create(params)
 
@@ -71,9 +130,17 @@ last_blob_time = None
 last_blob_position = None
 stillness_timer = 0
 status_text = "Ready..."
-presence_duration_threshold = 0.6
-stillness_duration_threshold = 1.0
-movement_threshold = 6
+
+# Gesture detection thresholds
+if USE_CONFIG:
+    presence_duration_threshold = config.detection.gesture.presence_duration
+    stillness_duration_threshold = config.detection.gesture.stillness_duration
+    movement_threshold = config.detection.gesture.movement_threshold
+else:
+    presence_duration_threshold = 0.6
+    stillness_duration_threshold = 1.0
+    movement_threshold = 6
+
 last_valid_output_frame = None  # Keeps track of last good frame
 
 # === Prediction Thread Control ===
@@ -123,7 +190,7 @@ def move_servo_smoothly(target_func):
         beat_phase = math.sin(time.time() * 2 * math.pi * 1.2)
         brightness_scale = 0.7 + 0.3 * (0.5 + 0.5 * beat_phase)
         current_step = int(progress * servo_steps)
-        if current_step != last_servo_step:
+        if servo and current_step != last_servo_step:
             val = -1 + progress * 2 if target_func == "open" else 1 - progress * 2
             servo.value = val
             last_servo_step = current_step
@@ -148,15 +215,17 @@ def move_servo_smoothly(target_func):
             break
     spell_fade_out(target_func)
     time.sleep(0.2)
-    servo.detach()
+    if servo:
+        servo.detach()
 
 # Play sound with volume ducking
 
 def play_spell_sound(sound_effect):
-    mixer.music.set_volume(0.4)
+    bg_volume = config.audio.background_volume if USE_CONFIG else 0.6
+    mixer.music.set_volume(bg_volume * 0.67)  # Duck to 67% during spell
     sound_effect.play()
     time.sleep(0.1)
-    mixer.music.set_volume(0.6)
+    mixer.music.set_volume(bg_volume)
 
 # Handles image preprocessing and model inference in a thread
 def threaded_predict(mask):
@@ -298,7 +367,8 @@ try:
 finally:
     # Cleanup on exit
     cv2.destroyAllWindows()
-    servo.detach()
+    if servo:
+        servo.detach()
     neo.fill_strip(0, 0, 0)
     neo.update_strip()
     mixer.music.stop()

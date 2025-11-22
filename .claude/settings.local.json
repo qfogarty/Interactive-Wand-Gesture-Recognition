@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.raspberrypi.com)",
+      "WebFetch(domain:datasheets.raspberrypi.com)",
+      "WebFetch(domain:learn.adafruit.com)",
+      "WebFetch(domain:gordonlesti.com)",
+      "WebFetch(domain:docs.circuitpython.org)",
+      "Bash(python3 -m py_compile:*)",
+      "Bash(! grep -q \"Servo-based box movement$\" README.md)",
+      "Bash(/dev/null)",
+      "WebFetch(domain:packaging.python.org)",
+      "WebFetch(domain:importlib-resources.readthedocs.io)",
+      "WebFetch(domain:www.raspberrypi-spy.co.uk)",
+      "Bash(python3:*)",
+      "Bash(chmod:*)",
+      "Bash(bash:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
