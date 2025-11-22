@@ -174,16 +174,55 @@ hardware:
 - Set `enabled: false` if you don't have a servo (default)
 - Servo must be powered by external 5V source (not Pi pins)
 
-### IR Illuminator (Optional)
+### IR Illuminator
 
-Configure IR LED illuminator for enhanced wand tracking.
+Configure IR LED illuminator for enhanced wand tracking. Two options available:
+
+#### Option A: Camera-Mounted IR Ring (Recommended for Beginners)
+
+**Best for:** 1-3m tracking distance, simple setup, minimal wiring
+
+**Hardware:** 5W 850nm IR LED ring that mounts directly on Camera Module 3
 
 ```yaml
 hardware:
   ir_illuminator:
-    enabled: false               # Set to true for PWM control
+    enabled: false               # No GPIO control - powered by camera
+
+  camera:
+    exposure_time: 12000         # Increased for dimmer IR source
+    analogue_gain: 8.0           # Higher gain for camera-mounted IR
+    brightness: -0.3
+```
+
+**Setup:**
+- IR ring powers from camera module's 5V/GND pins
+- Always on when camera is on
+- No external wiring required
+- Optimal for typical wand casting distance (1-2m)
+
+**Advantages:**
+- ✅ Simplest setup - no external PSU or wiring
+- ✅ All-in-one with camera module
+- ✅ Compact and portable
+- ✅ Perfect for home/small room use
+
+#### Option B: External IR Board (For Larger Spaces)
+
+**Best for:** 5-10m tracking distance, larger rooms, higher power
+
+**Hardware:** 42+ LED 850nm IR board (DC12V)
+
+```yaml
+hardware:
+  ir_illuminator:
+    enabled: true                # Enable for PWM control
     gpio_pin: 18                 # GPIO pin for PWM control
     pwm_frequency: 1000          # PWM frequency in Hz
+
+  camera:
+    exposure_time: 8000          # Standard for powerful IR
+    analogue_gain: 6.0
 ```
 
 #### Parameters
@@ -194,10 +233,21 @@ hardware:
 | `gpio_pin` | int | 18 | GPIO pin for MOSFET gate control |
 | `pwm_frequency` | int | 1000 | PWM frequency (100-5000 Hz) |
 
-#### Setup Options
+#### Setup Options for External IR
 
 1. **Simple (Always-On)**: Set `enabled: false`, wire IR board directly to 12V PSU
 2. **PWM Control**: Set `enabled: true`, add MOSFET circuit for brightness control
+
+#### Comparison
+
+| Feature | Camera-Mounted | External Board |
+|---------|---------------|----------------|
+| **Power** | 5V from camera | 12V external PSU |
+| **Range** | 1-3 meters | 5-10 meters |
+| **Wiring** | None (mounts on camera) | Requires PSU + optional MOSFET |
+| **Setup** | Plug and play | Moderate complexity |
+| **Best For** | Home/small rooms | Large spaces/studios |
+| **Camera Settings** | Higher exposure/gain | Standard settings |
 
 ---
 

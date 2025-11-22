@@ -15,10 +15,10 @@ A personal passion project recreating the magic of spellcasting through computer
 | **Raspberry Pi** | Raspberry Pi 5 (4GB+ recommended) | Pi 4 may work but requires different LED setup |
 | **Camera** | Raspberry Pi Camera Module 3 NoIR (Wide Angle) | NoIR (no infrared filter) essential for IR tracking |
 | **LED Strip** | WS2812B DC5V Addressable RGB LED Strip | 30-150 LEDs recommended, IP65/IP68 waterproof |
-| **IR Illuminator** | 850nm IR LED Board (DC12V, 42+ LEDs) | 850nm wavelength optimal for NoIR camera |
+| **IR Illuminator** | **Option A:** Camera-mounted 850nm IR ring (5W)<br>**Option B:** External 850nm IR board (DC12V, 42+ LEDs) | **Option A:** Simpler - mounts directly on camera, powered by camera module, 1-3m range<br>**Option B:** More powerful - separate board, requires 12V PSU, 5-10m range |
 | **Power Supply** | 5V/27W USB-C PD for Pi 5 | Official Raspberry Pi adapter recommended |
 | **Power Supply** | 5V/2-5A for LED strip | Separate PSU based on LED count (60mA per LED) |
-| **Power Supply** | 12V/2A for IR illuminator | DC barrel jack or screw terminals |
+| **Power Supply** | 12V/2A for external IR illuminator | Only if using Option B external IR board |
 | **MicroSD Card** | 32GB+ Class 10 | For Raspberry Pi OS |
 | **Wand** | Any object with IR LED at tip | 850nm IR LED + coin battery works well |
 
@@ -36,7 +36,9 @@ A personal passion project recreating the magic of spellcasting through computer
 
 - **Servo is OPTIONAL**: The wand tracking, spell recognition, and LED/audio effects work without it
 - **LED Strip Length**: 30 LEDs sufficient for small displays; 150+ for larger installations
-- **IR Illuminator Power**: Can be simplified to always-on (no MOSFET) if brightness control not needed
+- **IR Illuminator Options**:
+  - **Camera-Mounted (Recommended for beginners)**: Simplest setup - mounts directly on camera module, powers from camera, no external wiring, perfect for 1-3m tracking distance
+  - **External Board**: More powerful illumination for larger spaces (5-10m), requires 12V PSU and optional MOSFET for brightness control
 - **Wand Construction**: Any IR LED (850nm) attached to stick/wand with power works as tracking point
 
 ---
@@ -234,6 +236,57 @@ Optional:
 
 **⚠️ SAFETY:** 850nm IR LEDs are eye-safe at >1 meter distance. Avoid staring directly at LEDs from close range.
 
+Choose between two IR illuminator options based on your needs:
+
+---
+
+#### **Option A: Camera-Mounted IR Ring (Recommended for Beginners)**
+
+**Best for:** Simple setup, 1-3m tracking distance, minimal wiring
+
+**Hardware:** 5W 850nm IR LED ring/board that mounts directly on Camera Module 3
+
+**Installation:**
+1. **Power off** Raspberry Pi
+2. **Attach IR ring** to Camera Module 3:
+   - Connect to camera module's 5V and GND pins
+   - Ensure LEDs face forward (same direction as lens)
+   - Secure with mounting clips/adhesive (usually included)
+3. **Power on** - IR LEDs illuminate automatically with camera
+
+**Configuration:**
+```yaml
+# config.yaml
+hardware:
+  ir_illuminator:
+    enabled: false  # No GPIO control - powered by camera
+
+  camera:
+    exposure_time: 12000  # Increased for camera-mounted IR
+    analogue_gain: 8.0    # Higher gain for dimmer IR source
+```
+
+**Testing:**
+```bash
+rpicam-hello -t 5000 --shutter 12000 --gain 8
+# Point wand at camera - IR tip should appear bright
+```
+
+**Advantages:**
+- ✅ No external wiring or PSU
+- ✅ All-in-one with camera
+- ✅ Compact and portable
+- ✅ Always on when camera is on
+- ✅ Perfect for typical wand casting distance (1-2m)
+
+---
+
+#### **Option B: External IR Board (For Larger Spaces)**
+
+**Best for:** 5-10m tracking distance, larger rooms, higher power needs
+
+**Hardware:** 42+ LED 850nm IR board (DC12V)
+
 **Simple Setup (Always-On):**
 1. Connect IR board positive to 12V PSU positive
 2. Connect IR board GND to 12V PSU GND
@@ -256,6 +309,20 @@ Pi GND (Pin 14)     →  MOSFET Source  →  IR Board GND
 12V PSU GND         →  Pi GND (common ground)
 ```
 
+**Configuration:**
+```yaml
+# config.yaml
+hardware:
+  ir_illuminator:
+    enabled: true   # For PWM control
+    gpio_pin: 18
+    pwm_frequency: 1000
+
+  camera:
+    exposure_time: 8000   # Standard for powerful IR
+    analogue_gain: 6.0
+```
+
 **Python Control Example:**
 ```python
 from gpiozero import PWMOutputDevice
@@ -266,8 +333,10 @@ ir_led.value = 0.5  # 50% brightness
 
 **Positioning:**
 - Mount IR illuminator near camera (co-axial or ring mount ideal)
-- Distance from tracking area: 1-2.5 meters optimal
+- Distance from tracking area: 1-5 meters optimal
 - Test with camera view to ensure even illumination
+
+---
 
 **Reference:** See `IR_ILLUMINATOR_INTEGRATION_RESEARCH.md` for complete circuit diagrams, safety guidelines, and troubleshooting. See `WIRING_DIAGRAMS.md` for visual schematics.
 
