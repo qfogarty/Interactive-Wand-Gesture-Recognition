@@ -11,6 +11,7 @@ import sys
 
 from utils.terminal_ui import Colors, print_banner
 from utils.hardware_checks import check_camera_available, check_spi_device
+from utils.config_builder import build_final_config, show_completion_message
 
 def ask_yes_no(question, default=True):
     """Ask a yes/no question"""
@@ -201,62 +202,7 @@ def main():
     audio_config = configure_audio()
 
     # Build final config structure
-    final_config = {
-        'project': {
-            'name': 'Interactive Wand',
-            'version': '1.0.0'
-        },
-        'hardware': {
-            'led': {
-                'count': hw_config['led_count'],
-                'timing': hw_config['led_timing'],
-                'spi_device': hw_config['led_spi'],
-                'gpio_pin': 19
-            },
-            'camera': {
-                'resolution': [hw_config['camera_width'], hw_config['camera_height']],
-                'exposure_time': hw_config['camera_exposure'],
-                'analogue_gain': hw_config['camera_gain'],
-                'brightness': hw_config['camera_brightness']
-            },
-            'servo': {
-                'enabled': hw_config['servo_enabled'],
-                'gpio_pin': hw_config.get('servo_gpio', 12),
-                'min_pulse_width': hw_config.get('servo_min_pulse', 0.0005),
-                'max_pulse_width': hw_config.get('servo_max_pulse', 0.0025)
-            },
-            'ir_illuminator': {
-                'enabled': hw_config['ir_enabled'],
-                'gpio_pin': hw_config.get('ir_gpio', 18),
-                'pwm_frequency': hw_config.get('ir_pwm_freq', 1000)
-            }
-        },
-        'detection': {
-            'blob_detector': {
-                'min_threshold': detect_config['min_threshold'],
-                'max_threshold': detect_config['max_threshold'],
-                'min_area': detect_config['min_area'],
-                'max_area': detect_config['max_area'],
-                'min_circularity': detect_config['min_circularity'],
-                'min_inertia_ratio': detect_config['min_inertia']
-            },
-            'gesture': {
-                'presence_duration': detect_config['presence_duration'],
-                'stillness_duration': detect_config['stillness_duration'],
-                'movement_threshold': detect_config['movement_threshold']
-            }
-        },
-        'audio': {
-            'background_volume': audio_config['background_volume'],
-            'spell_volume': audio_config['spell_volume']
-        },
-        'paths': {
-            'sounds_dir': 'Sounds',
-            'model_file': 'new_custom_classifier.pkl',
-            'lastframe_file': 'lastframe.jpg',
-            'dataset_dir': 'DatasetCreation'
-        }
-    }
+    final_config = build_final_config(hw_config, detect_config, audio_config)
 
     # Preview configuration
     print(f"\n{Colors.BOLD}=== Configuration Preview ==={Colors.NC}")
@@ -265,14 +211,7 @@ def main():
     # Confirm and save
     if ask_yes_no("\nSave this configuration?", default=True):
         if save_config(final_config, config_path):
-            print(f"\n{Colors.GREEN}╔══════════════════════════════════════════════╗{Colors.NC}")
-            print(f"{Colors.GREEN}║       Setup Complete! ✓                      ║{Colors.NC}")
-            print(f"{Colors.GREEN}╚══════════════════════════════════════════════╝{Colors.NC}")
-            print(f"\n{Colors.BOLD}Next steps:{Colors.NC}")
-            print(f"  1. {Colors.BLUE}Test your setup:{Colors.NC} python3 test_setup.py")
-            print(f"  2. {Colors.BLUE}Train your model:{Colors.NC} cd DatasetCreation && python3 train_spell_classifier.py")
-            print(f"  3. {Colors.BLUE}Run the wand tracker:{Colors.NC} python3 HarryPotterWandcv.py")
-            print(f"\n{Colors.GREEN}Happy spell casting! 🪄✨{Colors.NC}\n")
+            show_completion_message()
         else:
             sys.exit(1)
     else:
