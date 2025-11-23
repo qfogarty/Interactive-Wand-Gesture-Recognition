@@ -44,6 +44,91 @@ def ask_number(question, default, min_val=None, max_val=None):
         except ValueError:
             print(f"{Colors.RED}Please enter a valid number{Colors.NC}")
 
+def configure_led_strip() -> dict:
+    """Configure LED strip parameters"""
+    print(f"{Colors.BOLD}LED Strip (WS2812B):{Colors.NC}")
+    return {
+        'led_count': ask_number("Number of LEDs in strip", 30, min_val=1, max_val=300),
+        'led_timing': ask_number("LED timing (800 for WS2812B)", 800),
+        'led_spi': input(f"{Colors.YELLOW}SPI device path{Colors.NC} [/dev/spidev0.0]: ").strip() or "/dev/spidev0.0"
+    }
+
+
+def configure_camera_settings(ir_adjustments: dict = None) -> dict:
+    """Configure camera with optional IR adjustments"""
+    print(f"\n{Colors.BOLD}Camera Configuration:{Colors.NC}")
+
+    config = {
+        'camera_width': ask_number("Camera width (pixels)", 640, min_val=320),
+        'camera_height': ask_number("Camera height (pixels)", 480, min_val=240),
+        'camera_exposure': ask_number("Camera exposure time (microseconds)", 8000, min_val=100),
+        'camera_gain': ask_number("Camera analogue gain", 6.0, min_val=1.0),
+        'camera_brightness': ask_number("Camera brightness adjustment", -0.3)
+    }
+
+    # Apply IR adjustments if provided
+    if ir_adjustments:
+        config.update(ir_adjustments)
+
+    return config
+
+
+def configure_servo_motor() -> dict:
+    """Configure servo motor if enabled"""
+    print(f"\n{Colors.BOLD}Servo Motor (Optional):{Colors.NC}")
+    print("Note: Servo is optional - system works without it.")
+
+    enabled = ask_yes_no("Enable servo motor support?", default=False)
+
+    config = {'servo_enabled': enabled}
+
+    if enabled:
+        config['servo_gpio'] = ask_number("Servo GPIO pin", 12, min_val=0, max_val=27)
+        config['servo_min_pulse'] = ask_number("Minimum pulse width", 0.0005)
+        config['servo_max_pulse'] = ask_number("Maximum pulse width", 0.0025)
+
+    return config
+
+
+def configure_ir_illuminator() -> tuple:
+    """
+    Configure IR illuminator with type selection.
+
+    Returns:
+        Tuple of (ir_config, camera_adjustments)
+    """
+    print(f"\n{Colors.BOLD}IR Illuminator:{Colors.NC}")
+    print("Choose your IR illuminator type:")
+    print("  1. Camera-mounted IR ring (5W, mounts on camera - SIMPLE)")
+    print("  2. External IR board (12V, separate board - MORE POWERFUL)")
+
+    ir_choice = input(f"{Colors.YELLOW}Select option [1/2]{Colors.NC}: ").strip()
+
+    if ir_choice == "1":
+        print(f"{Colors.GREEN}✓ Camera-mounted IR selected{Colors.NC}")
+        print(f"  Camera settings will be adjusted for dimmer IR source")
+        return (
+            {'ir_type': 'camera-mounted', 'ir_enabled': False},
+            {'camera_exposure': 12000, 'camera_gain': 8.0}
+        )
+    elif ir_choice == "2":
+        enabled = ask_yes_no("Enable GPIO control (PWM brightness)?", default=True)
+        config = {'ir_type': 'external', 'ir_enabled': enabled}
+
+        if enabled:
+            config['ir_gpio'] = ask_number("IR illuminator GPIO pin", 18, min_val=0, max_val=27)
+            config['ir_pwm_freq'] = ask_number("PWM frequency (Hz)", 1000, min_val=100)
+
+        print(f"{Colors.GREEN}✓ External IR board selected{Colors.NC}")
+        return (config, None)
+    else:
+        print(f"{Colors.YELLOW}Invalid choice, defaulting to camera-mounted IR{Colors.NC}")
+        return (
+            {'ir_type': 'camera-mounted', 'ir_enabled': False},
+            {'camera_exposure': 12000, 'camera_gain': 8.0}
+        )
+
+
 def test_camera():
     """Test camera availability"""
     print(f"\n{Colors.BLUE}Testing camera...{Colors.NC}")
@@ -68,63 +153,19 @@ def configure_hardware():
     """Interactive hardware configuration"""
     print(f"\n{Colors.BOLD}=== Hardware Configuration ==={Colors.NC}\n")
 
-    config = {}
+    # Gather configurations
+    led_config = configure_led_strip()
+    ir_config, camera_adjustments = configure_ir_illuminator()
+    camera_config = configure_camera_settings(camera_adjustments)
+    servo_config = configure_servo_motor()
 
-    # LED Strip
-    print(f"{Colors.BOLD}LED Strip (WS2812B):{Colors.NC}")
-    config['led_count'] = ask_number("Number of LEDs in strip", 30, min_val=1, max_val=300)
-    config['led_timing'] = ask_number("LED timing (800 for WS2812B)", 800)
-    config['led_spi'] = input(f"{Colors.YELLOW}SPI device path{Colors.NC} [/dev/spidev0.0]: ").strip() or "/dev/spidev0.0"
-
-    # Camera
-    print(f"\n{Colors.BOLD}Camera Configuration:{Colors.NC}")
-    config['camera_width'] = ask_number("Camera width (pixels)", 640, min_val=320)
-    config['camera_height'] = ask_number("Camera height (pixels)", 480, min_val=240)
-    config['camera_exposure'] = ask_number("Camera exposure time (microseconds)", 8000, min_val=100)
-    config['camera_gain'] = ask_number("Camera analogue gain", 6.0, min_val=1.0)
-    config['camera_brightness'] = ask_number("Camera brightness adjustment", -0.3)
-
-    # Servo (Optional)
-    print(f"\n{Colors.BOLD}Servo Motor (Optional):{Colors.NC}")
-    print("Note: You indicated you don't have a servo, but you can enable it later if needed.")
-    config['servo_enabled'] = ask_yes_no("Enable servo motor support?", default=False)
-    if config['servo_enabled']:
-        config['servo_gpio'] = ask_number("Servo GPIO pin", 12, min_val=0, max_val=27)
-        config['servo_min_pulse'] = ask_number("Minimum pulse width", 0.0005)
-        config['servo_max_pulse'] = ask_number("Maximum pulse width", 0.0025)
-
-    # IR Illuminator (Optional)
-    print(f"\n{Colors.BOLD}IR Illuminator:{Colors.NC}")
-    print("Choose your IR illuminator type:")
-    print("  1. Camera-mounted IR ring (5W, mounts on camera - SIMPLE)")
-    print("  2. External IR board (12V, separate board - MORE POWERFUL)")
-
-    ir_choice = input(f"{Colors.YELLOW}Select option [1/2]{Colors.NC}: ").strip()
-
-    if ir_choice == "1":
-        # Camera-mounted IR
-        config['ir_type'] = 'camera-mounted'
-        config['ir_enabled'] = False  # No GPIO control
-        print(f"{Colors.GREEN}✓ Camera-mounted IR selected - no GPIO control needed{Colors.NC}")
-        print(f"  Note: Camera settings will be adjusted for dimmer IR source")
-        # Adjust camera settings for camera-mounted IR
-        config['camera_exposure'] = 12000  # Increase exposure
-        config['camera_gain'] = 8.0        # Increase gain
-    elif ir_choice == "2":
-        # External IR board
-        config['ir_type'] = 'external'
-        config['ir_enabled'] = ask_yes_no("Enable GPIO control (PWM brightness)?", default=True)
-        if config['ir_enabled']:
-            config['ir_gpio'] = ask_number("IR illuminator GPIO pin", 18, min_val=0, max_val=27)
-            config['ir_pwm_freq'] = ask_number("PWM frequency (Hz)", 1000, min_val=100)
-        print(f"{Colors.GREEN}✓ External IR board selected{Colors.NC}")
-    else:
-        # Default to camera-mounted (simplest)
-        print(f"{Colors.YELLOW}Invalid choice, defaulting to camera-mounted IR{Colors.NC}")
-        config['ir_type'] = 'camera-mounted'
-        config['ir_enabled'] = False
-
-    return config
+    # Merge all configs
+    return {
+        **led_config,
+        **camera_config,
+        **servo_config,
+        **ir_config
+    }
 
 def configure_detection():
     """Configure detection parameters"""
