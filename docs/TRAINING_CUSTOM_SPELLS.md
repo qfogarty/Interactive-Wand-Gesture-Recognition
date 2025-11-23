@@ -31,6 +31,58 @@ You can train unlimited custom spells (Class 2, 3, 4...) with your own gesture s
 - Text editor for code modifications
 - (Optional) MP3 sound effects for your spells
 
+### Training Pipeline
+
+Complete workflow from gesture drawing to spell casting:
+
+```mermaid
+flowchart TB
+    START([Want New Spell]) --> DRAW[draw_spell_data.py<br/>Draw 50-100 Samples]
+
+    DRAW --> SAVE[Save as Class N<br/>N = 2, 3, 4...]
+
+    SAVE --> CONVERT[convert_to_training_data.py<br/>Convert to NumPy Arrays]
+
+    CONVERT --> SPLIT[X_spells.npy<br/>y_spells.npy<br/>Training Data Created]
+
+    SPLIT --> TRAIN[train_spell_classifier.py<br/>GridSearchCV + SVM]
+
+    TRAIN --> MODEL[new_custom_classifier.pkl<br/>Trained Model]
+
+    MODEL --> CODE{Add LED<br/>Colors?}
+
+    CODE -->|Yes| ANIM[Edit utils/animations.py<br/>Add Color Scheme in<br/>move_servo_smoothly]
+    CODE -->|No| SOUND
+
+    ANIM --> SOUND{Add Sound<br/>Effects?}
+
+    SOUND -->|Yes| MP3[Add MP3 to Sounds/<br/>Load in harry_potter_wand_cv.py<br/>Update threaded_predict]
+    SOUND -->|No| TEST
+
+    MP3 --> TEST[python3 harry_potter_wand_cv.py<br/>Test New Spell]
+
+    TEST --> WORKS{Spell<br/>Recognized?}
+
+    WORKS -->|No| TUNE[Tune Detection Parameters<br/>Or Add More Training Data]
+    WORKS -->|Yes| DONE([🎉 New Spell Active!])
+
+    TUNE --> DRAW
+
+    style START fill:#4a90e2,color:#fff
+    style DONE fill:#50c878,color:#fff
+    style TRAIN fill:#f5a623,color:#fff
+    style MODEL fill:#9b59b6,color:#fff
+    style TEST fill:#e74c3c,color:#fff
+```
+
+**Key Steps:**
+1. **Draw Samples** - Create 50-100 training examples of your spell gesture
+2. **Convert Data** - Transform drawings into 28x28 NumPy arrays
+3. **Train Model** - Use scikit-learn SVM with hyperparameter tuning
+4. **Customize Effects** - Edit `utils/animations.py` for LED colors
+5. **Add Sound** - (Optional) Include MP3 spell sound effects
+6. **Test & Tune** - Validate recognition and adjust parameters
+
 ---
 
 ## Quick Start
@@ -47,11 +99,34 @@ python3 convert_to_training_data.py
 # 3. Train new classifier
 python3 train_spell_classifier.py
 
-# 4. Edit HarryPotterWandcv.py to add LED colors (see below)
+# 4. Edit harry_potter_wand_cv.py to add LED colors (see below)
 
 # 5. Test your new spell!
-python3 HarryPotterWandcv.py
+python3 harry_potter_wand_cv.py
 ```
+
+---
+
+## Module Architecture Note
+
+After recent refactoring, LED animations and audio are managed by dedicated utility modules:
+
+**LED Effects** (`utils/animations.py`):
+- `move_servo_smoothly(neo, servo, target_func)` - Main LED animation function
+- `spell_fade_out(neo, spell)` - Fade-out effect after spell completes
+- `lerp(a, b, t)` - Linear interpolation helper
+
+**Sound Effects** (`utils/audio.py`):
+- `play_spell_sound(sound_effect, background_volume)` - Play spell sound with volume ducking
+
+**Main Application** (`harry_potter_wand_cv.py`):
+- `threaded_predict(mask)` - Spell prediction and effect triggering
+
+When adding custom spells, you'll primarily edit:
+1. `utils/animations.py` - Add new LED color schemes
+2. `harry_potter_wand_cv.py` - Load new sound effects and update prediction logic
+
+This modular structure makes it easier to add new spells without cluttering the main detection loop.
 
 ---
 
@@ -158,7 +233,7 @@ Before modifying code, test if the classifier works:
 
 ```bash
 cd ..
-python3 HarryPotterWandsklearn.py
+python3 harry_potter_wand_sklearn.py
 ```
 
 Wave your wand and check console output. It should print class numbers (0, 1, 2, 3...).
@@ -167,7 +242,7 @@ Wave your wand and check console output. It should print class numbers (0, 1, 2,
 
 ## Adding Custom LED Colors
 
-Now configure LED animations for your new spells by editing `HarryPotterWandcv.py`.
+Now configure LED animations for your new spells by editing `harry_potter_wand_cv.py`.
 
 ### A. Update `spell_fade_out()` Function
 
@@ -312,7 +387,7 @@ def threaded_predict(mask):
         mask = cv2.dilate(mask, (3, 3))
         cv2.imwrite(LASTFRAME_PATH, mask)
 
-        from HarryPotterWandsklearn import predict_spell
+        from harry_potter_wand_sklearn import predict_spell
         prediction = str(predict_spell(LASTFRAME_PATH, MODEL_PATH))
         print("Prediction:", prediction)
 
@@ -638,7 +713,7 @@ elif target_func == "rainbow":
 2. Train with more variation
 3. Lower threshold requirements:
    ```python
-   # In HarryPotterWandcv.py
+   # In harry_potter_wand_cv.py
    params.minCircularity = 0.5  # Lower from 0.75 for less strict shapes
    ```
 
@@ -719,7 +794,7 @@ LUMOS_SOUND = mixer.Sound(os.path.join(PROJECT_DIR, "Sounds", "Lumos.mp3"))
 
 ### 3. Test
 ```bash
-python3 HarryPotterWandcv.py
+python3 harry_potter_wand_cv.py
 # Draw circle gesture
 # Should see green LED animation and hear sound
 ```

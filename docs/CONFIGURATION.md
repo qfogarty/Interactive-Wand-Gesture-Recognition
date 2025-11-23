@@ -75,6 +75,81 @@ paths:
   # ... (all relative to project root)
 ```
 
+### Configuration Hierarchy
+
+Visual representation of the `config.yaml` structure:
+
+```mermaid
+graph TD
+    ROOT[config.yaml] --> PROJECT[project]
+    ROOT --> HW[hardware]
+    ROOT --> DETECT[detection]
+    ROOT --> AUDIO[audio]
+    ROOT --> PATHS[paths]
+
+    PROJECT --> NAME[name: Interactive Wand]
+    PROJECT --> VER[version: 1.0.0]
+
+    HW --> LED[led]
+    HW --> CAM[camera]
+    HW --> SERVO[servo]
+    HW --> IR[ir_illuminator]
+
+    LED --> LED_COUNT[count: 30]
+    LED --> LED_SPI[spi_device: /dev/spidev0.0]
+    LED --> LED_TIMING[timing: 800]
+    LED --> LED_GPIO[gpio_pin: 19]
+
+    CAM --> CAM_RES[resolution: 640, 480]
+    CAM --> CAM_EXP[exposure_time: 8000]
+    CAM --> CAM_GAIN[analogue_gain: 6.0]
+    CAM --> CAM_BRIGHT[brightness: -0.3]
+
+    SERVO --> SERVO_EN[enabled: false]
+    SERVO --> SERVO_PIN[gpio_pin: 12]
+    SERVO --> SERVO_MIN[min_pulse_width: 0.0005]
+    SERVO --> SERVO_MAX[max_pulse_width: 0.0025]
+
+    IR --> IR_EN[enabled: false]
+    IR --> IR_PIN[gpio_pin: 18]
+    IR --> IR_FREQ[pwm_frequency: 1000]
+
+    DETECT --> BLOB[blob_detector]
+    DETECT --> GEST[gesture]
+
+    BLOB --> THRESH_MIN[min_threshold: 180]
+    BLOB --> THRESH_MAX[max_threshold: 255]
+    BLOB --> AREA_MIN[min_area: 15]
+    BLOB --> AREA_MAX[max_area: 500]
+    BLOB --> CIRC[min_circularity: 0.75]
+    BLOB --> INERT[min_inertia_ratio: 0.3]
+
+    GEST --> PRES[presence_duration: 0.6s]
+    GEST --> STILL[stillness_duration: 1.0s]
+    GEST --> MOVE[movement_threshold: 6px]
+
+    AUDIO --> BG[background_volume: 0.6]
+    AUDIO --> SPELL[spell_volume: 1.0]
+
+    PATHS --> SOUNDS[sounds_dir: Sounds]
+    PATHS --> MODEL[model_file: new_custom_classifier.pkl]
+    PATHS --> LAST[lastframe_file: lastframe.jpg]
+    PATHS --> DATASET[dataset_dir: DatasetCreation]
+
+    style ROOT fill:#4a90e2,color:#fff
+    style HW fill:#50c878,color:#fff
+    style DETECT fill:#f5a623,color:#fff
+    style AUDIO fill:#9b59b6,color:#fff
+    style PATHS fill:#e74c3c,color:#fff
+```
+
+**Configuration Sections:**
+- **project**: Project metadata (name, version)
+- **hardware**: Physical components (LEDs, camera, servo, IR illuminator)
+- **detection**: Computer vision parameters (blob detection, gesture thresholds)
+- **audio**: Sound effect and background music volumes
+- **paths**: File and directory locations (relative to project root)
+
 ---
 
 ## Hardware Configuration
@@ -293,7 +368,7 @@ detection:
 
 **Testing blob detection:**
 ```bash
-python3 HarryPotterWandcv.py
+python3 harry_potter_wand_cv.py
 # Press 'q' to quit
 # Adjust config.yaml and restart
 ```
@@ -429,7 +504,7 @@ cp config.yaml config.prod.yaml
 
 # Use specific config
 export CONFIG_PATH=config.dev.yaml
-python3 HarryPotterWandcv.py
+python3 harry_potter_wand_cv.py
 ```
 
 ### Configuration Validation

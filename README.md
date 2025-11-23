@@ -43,6 +43,73 @@ A personal passion project recreating the magic of spellcasting through computer
 
 ---
 
+## 🧠 System Architecture
+
+Visual overview of how the Interactive Wand system components work together:
+
+```mermaid
+graph TB
+    subgraph "Hardware Layer"
+        CAM[Pi Camera Module 3 NoIR<br/>640x480 @ 30fps]
+        LED[WS2812B LED Strip<br/>30-150 LEDs]
+        IR[IR Illuminator<br/>850nm]
+        SERVO[Servo Motor<br/>Optional]
+        WAND[Wand with IR LED<br/>850nm tip]
+    end
+
+    subgraph "Raspberry Pi 5"
+        MAIN[harry_potter_wand_cv.py<br/>Main Application]
+        ML[harry_potter_wand_sklearn.py<br/>ML Prediction]
+        CONFIG[config_loader.py<br/>Configuration Manager]
+    end
+
+    subgraph "Utils Package"
+        ANIM[animations.py<br/>LED/Servo Effects]
+        AUDIO[audio.py<br/>Sound Management]
+        HW[hardware_checks.py<br/>Validation]
+        TERM[terminal_ui.py<br/>Console Output]
+        CB[config_builder.py<br/>Setup Wizard]
+    end
+
+    subgraph "Configuration"
+        YAML[config.yaml<br/>User Settings]
+    end
+
+    IR -->|Illuminates| WAND
+    WAND -->|Visible to| CAM
+    CAM -->|Video Feed| MAIN
+
+    MAIN -->|Controls| LED
+    MAIN -->|Controls| SERVO
+    MAIN -->|Predicts Spell| ML
+    MAIN -->|LED Effects| ANIM
+    MAIN -->|Sound Effects| AUDIO
+    MAIN -->|Loads Settings| CONFIG
+
+    CONFIG -->|Reads| YAML
+    CONFIG -->|Validates| HW
+
+    CB -->|Creates| YAML
+
+    style MAIN fill:#4a90e2,color:#fff
+    style ML fill:#4a90e2,color:#fff
+    style ANIM fill:#50c878,color:#fff
+    style AUDIO fill:#50c878,color:#fff
+    style HW fill:#50c878,color:#fff
+    style TERM fill:#50c878,color:#fff
+    style CB fill:#50c878,color:#fff
+    style CONFIG fill:#f5a623,color:#fff
+    style YAML fill:#f5a623,color:#fff
+```
+
+**Key Components:**
+- **Hardware Layer**: Physical components (camera, LEDs, IR, optional servo)
+- **Main Application**: Core gesture detection and show control
+- **Utils Package**: Reusable modules for LED animations, audio, and hardware validation
+- **Configuration**: YAML-based settings loaded dynamically
+
+---
+
 ## 🚀 Quick Start (Automated Installation)
 
 **NEW!** Automated installation script for hassle-free setup on Raspberry Pi 5.
@@ -51,6 +118,52 @@ A personal passion project recreating the magic of spellcasting through computer
 1. Fresh Raspberry Pi OS (Bookworm or newer) installed and updated
 2. Hardware connected according to wiring diagrams
 3. Internet connection for downloading dependencies
+
+### Installation Flow
+
+```mermaid
+flowchart TD
+    START([Fresh Raspberry Pi OS]) --> CHECK{Hardware<br/>Connected?}
+
+    CHECK -->|No| WIRE[Wire Components<br/>See docs/research/WIRING_DIAGRAMS.md]
+    CHECK -->|Yes| CLONE[git clone Repository]
+
+    WIRE --> CLONE
+    CLONE --> INSTALL[./install.sh]
+
+    INSTALL --> DEPS[Install Dependencies]
+    DEPS --> ENABLE[Enable Hardware Interfaces<br/>SPI, Camera, GPIO]
+    ENABLE --> PERMS[Configure Permissions]
+    PERMS --> WIZARD{Run<br/>setup_wizard.py?}
+
+    WIZARD -->|Yes| CONFIG[Interactive Configuration]
+    WIZARD -->|No| MANUAL[Manual config.yaml Edit]
+
+    CONFIG --> YAML[config.yaml Created]
+    MANUAL --> YAML
+
+    YAML --> TEST[python3 test_setup.py]
+
+    TEST --> PASS{All Tests<br/>Pass?}
+
+    PASS -->|No| DEBUG[Check Error Messages<br/>Review docs/CONFIGURATION.md]
+    PASS -->|Yes| TRAIN{Train Custom<br/>Spells?}
+
+    DEBUG --> FIX[Fix Issues]
+    FIX --> TEST
+
+    TRAIN -->|Yes| ML[See docs/TRAINING_CUSTOM_SPELLS.md]
+    TRAIN -->|No| RUN[python3 harry_potter_wand_cv.py]
+
+    ML --> RUN
+    RUN --> DONE([🎉 Cast Spells!])
+
+    style START fill:#4a90e2,color:#fff
+    style DONE fill:#50c878,color:#fff
+    style INSTALL fill:#f5a623,color:#fff
+    style CONFIG fill:#f5a623,color:#fff
+    style RUN fill:#f5a623,color:#fff
+```
 
 ### One-Command Installation
 
@@ -125,6 +238,74 @@ python3 harry_potter_wand_cv.py
 ```
 
 **That's it!** No manual path editing required.
+
+---
+
+## 🎯 How Gesture Detection Works
+
+The Interactive Wand uses computer vision and machine learning to recognize spell gestures in real-time:
+
+```mermaid
+flowchart LR
+    CAM[Camera Feed<br/>640x480 @ 30fps] --> GRAY[Convert to<br/>Grayscale]
+
+    GRAY --> BLOB[SimpleBlobDetector<br/>Find Wand Tip]
+
+    BLOB --> FOUND{Blob<br/>Found?}
+
+    FOUND -->|No| WAIT[Wait for Wand]
+    FOUND -->|Yes| TRACK[Track Position]
+
+    WAIT --> CAM
+
+    TRACK --> MOVE{Moving?}
+
+    MOVE -->|Yes| TRACE[Add to Trace Path]
+    MOVE -->|No| STILL[Increment Stillness Timer]
+
+    TRACE --> CHECK{Stillness<br/>Duration Met?}
+    STILL --> CHECK
+
+    CHECK -->|No| CAM
+    CHECK -->|Yes| EXTRACT[Extract Trace Mask]
+
+    EXTRACT --> PREPROCESS[Resize to 28x28<br/>Normalize]
+
+    PREPROCESS --> ML[SVM Classifier<br/>Predict Spell]
+
+    ML --> SPELL{Which<br/>Spell?}
+
+    SPELL -->|Alohamora| PURPLE[Purple LED Animation<br/>Servo Open]
+    SPELL -->|Colloportus| BLUE[Blue LED Animation<br/>Servo Close]
+    SPELL -->|Unknown| IGNORE[Ignore Gesture]
+
+    PURPLE --> SOUND1[Play Sound Effect]
+    BLUE --> SOUND2[Play Sound Effect]
+
+    SOUND1 --> RESET[Reset State]
+    SOUND2 --> RESET
+    IGNORE --> RESET
+
+    RESET --> CAM
+
+    style CAM fill:#4a90e2,color:#fff
+    style ML fill:#f5a623,color:#fff
+    style PURPLE fill:#9b59b6,color:#fff
+    style BLUE fill:#3498db,color:#fff
+```
+
+**Detection Pipeline:**
+
+1. **Camera Capture** - Pi Camera Module 3 NoIR captures grayscale video
+2. **Blob Detection** - OpenCV finds bright IR LED on wand tip
+3. **Gesture Tracing** - Tracks wand position over time, building a path
+4. **Spell Recognition** - SVM classifier analyzes trace shape (28x28 image)
+5. **Show Control** - Triggers LED animations, servo movements, and sound effects
+
+**Key Parameters** (tunable in `config.yaml`):
+- `stillness_duration`: How long wand must be still to complete gesture (default: 1.0s)
+- `movement_threshold`: Minimum pixel movement to count as motion (default: 6px)
+- `min_area`/`max_area`: Blob size range for wand detection (default: 15-500px²)
 
 ### Manual Installation
 
@@ -672,7 +853,7 @@ All code runs on-device using multithreaded Python on Raspberry Pi 5.
 
 ↳ Main runtime script: blob detection, trace drawing, spell prediction, and show control.
 
-**HarryPotterWandsklearn.py**
+**harry_potter_wand_sklearn.py**
 
 ↳ Used to run the pre-trained SVM classifier concurrently.
 
