@@ -18,7 +18,9 @@
       "Bash(test:*)",
       "Bash(pip3 install:*)",
       "Bash(git mv:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(make build-test:*)",
+      "Bash(make test-docker:*)"
     ],
     "deny": [],
     "ask": []
