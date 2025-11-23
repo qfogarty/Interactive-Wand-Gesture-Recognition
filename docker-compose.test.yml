@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Syntax and import validation
+  test-syntax:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-syntax
+    command: python3 tests/test_syntax.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+
+  # Configuration validation
+  test-config:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-config
+    command: python3 tests/test_config.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+
+  # Utils module testing
+  test-utils:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-utils
+    command: python3 tests/test_utils.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+
+  # Documentation validation
+  test-docs:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-docs
+    command: python3 tests/test_documentation.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+
+  # All tests combined
+  test-all:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-all
+    command: python3 tests/run_all_tests.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - TEST_MODE=docker

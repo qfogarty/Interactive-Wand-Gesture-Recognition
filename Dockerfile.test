@@ -1,0 +1,46 @@
+# Dockerfile for testing Interactive Wand project
+# Tests Python syntax, imports, configuration, and non-hardware components
+FROM python:3.11-slim
+
+LABEL description="Interactive Wand - Testing Environment"
+LABEL maintainer="Interactive Wand Project"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    python3-dev \
+    libopencv-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better layer caching
+COPY requirements.txt* ./
+
+# Install Python dependencies (non-hardware specific)
+RUN pip install --no-cache-dir \
+    numpy \
+    opencv-python-headless \
+    scikit-learn \
+    joblib \
+    pillow \
+    pandas \
+    PyYAML \
+    pytest \
+    pytest-cov \
+    pylint \
+    || true
+
+# Copy project files
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p DatasetCreation/spells_dataset
+
+# Set Python path
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Default command runs tests
+CMD ["python3", "-m", "pytest", "-v", "tests/", "--tb=short"]
