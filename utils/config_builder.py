@@ -85,5 +85,5 @@ def show_completion_message():
     print(f"\n{Colors.BOLD}Next steps:{Colors.NC}")
     print(f"  1. {Colors.BLUE}Test your setup:{Colors.NC} python3 test_setup.py")
     print(f"  2. {Colors.BLUE}Train your model:{Colors.NC} cd DatasetCreation && python3 train_spell_classifier.py")
-    print(f"  3. {Colors.BLUE}Run the wand tracker:{Colors.NC} python3 HarryPotterWandcv.py")
+    print(f"  3. {Colors.BLUE}Run the wand tracker:{Colors.NC} python3 harry_potter_wand_cv.py")
     print(f"\n{Colors.GREEN}Happy spell casting!{Colors.NC}\n")

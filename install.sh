@@ -191,8 +191,8 @@ mkdir -p "${PROJECT_DIR}/DatasetCreation/spells_dataset"
 echo -e "${GREEN}✓ Created dataset directory${NC}"
 
 # Set executable permissions
-chmod +x "${PROJECT_DIR}/HarryPotterWandcv.py"
-chmod +x "${PROJECT_DIR}/HarryPotterWandsklearn.py"
+chmod +x "${PROJECT_DIR}/harry_potter_wand_cv.py"
+chmod +x "${PROJECT_DIR}/harry_potter_wand_sklearn.py"
 echo -e "${GREEN}✓ Set executable permissions${NC}"
 
 echo ""
@@ -228,7 +228,7 @@ else
     echo -e "  1. ${BLUE}Configure your setup:${NC} python3 setup_wizard.py"
     echo -e "  2. ${BLUE}Train your model (optional):${NC} cd DatasetCreation && python3 train_spell_classifier.py"
     echo -e "  3. ${BLUE}Test the setup:${NC} python3 test_setup.py"
-    echo -e "  4. ${BLUE}Run the wand tracker:${NC} python3 HarryPotterWandcv.py"
+    echo -e "  4. ${BLUE}Run the wand tracker:${NC} python3 harry_potter_wand_cv.py"
     echo ""
     echo -e "For help: ${BLUE}./install.sh --help${NC} or check ${BLUE}docs/CONFIGURATION.md${NC}"
 fi

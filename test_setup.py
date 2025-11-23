@@ -270,7 +270,7 @@ def print_summary(results):
     if failed == 0:
         print(f"{Colors.GREEN}{Colors.BOLD}✓ All tests passed! System ready.{Colors.NC}")
         print(f"\n{Colors.BLUE}Next steps:{Colors.NC}")
-        print(f"  1. Run wand tracker: {Colors.BOLD}python3 HarryPotterWandcv.py{Colors.NC}")
+        print(f"  1. Run wand tracker: {Colors.BOLD}python3 harry_potter_wand_cv.py{Colors.NC}")
         print(f"  2. Train custom spells: {Colors.BOLD}cd DatasetCreation{Colors.NC}")
         print(f"\n{Colors.GREEN}Happy spell casting! 🪄✨{Colors.NC}")
         return True

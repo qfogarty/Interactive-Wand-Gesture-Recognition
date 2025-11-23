@@ -9,6 +9,9 @@ from picamera2 import Picamera2
 from pi5neo import Pi5Neo
 from pygame import mixer
 
+from utils.animations import move_servo_smoothly, spell_fade_out
+from utils.audio import play_spell_sound
+
 # Load configuration
 try:
     from config_loader import get_config
@@ -118,15 +121,65 @@ params.filterByInertia = 1
 # Creates the configured blob detector
 detector = cv2.SimpleBlobDetector_create(params)
 
+# === Gesture State Management ===
+class GestureState:
+    """Manages wand gesture tracking state"""
+
+    def __init__(self):
+        self.last_move = 0  # 0=open, 1=closed
+        self.points = []  # Points in current trace
+        self.trace_started = False
+        self.trace_start_time = None
+        self.last_blob_time = None
+        self.last_blob_position = None
+        self.stillness_timer = 0
+        self.status_text = "Ready..."
+        self.last_valid_output_frame = None
+
+    def reset_trace(self):
+        """Reset all trace-related state"""
+        self.trace_started = False
+        self.trace_start_time = None
+        self.last_blob_position = None
+        self.stillness_timer = 0
+        self.status_text = "Ready..."
+        self.points.clear()
+
+    def update_position(self, position, current_time):
+        """Update blob position and timestamp"""
+        self.last_blob_position = position
+        self.last_blob_time = current_time
+
+    def start_trace(self):
+        """Begin gesture tracing"""
+        self.trace_started = True
+        self.points.clear()
+        self.status_text = "Tracing..."
+        print("Start Tracing!!")
+
+    def add_trace_point(self, x, y):
+        """Add point to trace if valid"""
+        if not np.isnan(x) and not np.isnan(y):
+            self.points.append((int(x), int(y)))
+
+    def is_trace_too_short(self, stillness_duration_threshold):
+        """Check if trace should be cancelled"""
+        return len(self.points) < 10 and self.stillness_timer > (stillness_duration_threshold / 0.05)
+
+    def is_trace_complete(self, stillness_duration_threshold):
+        """Check if trace is complete"""
+        return self.stillness_timer > (stillness_duration_threshold / 0.05) and len(self.points) >= 10
+
+    def update_stillness(self, blob_movement, movement_threshold):
+        """Update stillness timer based on movement"""
+        if blob_movement < movement_threshold:
+            self.stillness_timer += 1
+        else:
+            self.stillness_timer = 0
+
+
 # === Global State Variables ===
-lastMove = 0  # 0=open, 1=closed
-points = []  # Points in current trace
-trace_started = False
-trace_start_time = None
-last_blob_time = None
-last_blob_position = None
-stillness_timer = 0
-status_text = "Ready..."
+lastMove = 0  # 0=open, 1=closed (still needed by threaded_predict)
 
 # Gesture detection thresholds
 if USE_CONFIG:
@@ -138,95 +191,16 @@ else:
     stillness_duration_threshold = 1.0
     movement_threshold = 6
 
-last_valid_output_frame = None  # Keeps track of last good frame
-
 # === Prediction Thread Control ===
 predicting = False
 prediction_lock = Lock()  # Ensures only one prediction runs at a time
 
-# === Helpers ===
-def lerp(a, b, t):
-    return a + (b - a) * t
-
-# Light animation when a spell fades out
-def spell_fade_out(spell):
-    steps = 20
-    for s in range(steps):
-        fade = 1 - (s / steps)
-        for i in range(num_leds):
-            flicker = 0.9 + 0.2 * random.random()
-            if spell == "open":
-                r = int(100 * fade * flicker)
-                g = int(20 * fade * flicker)
-                b = int(160 * fade * flicker)
-            elif spell == "close":
-                r = int(30 * fade * flicker)
-                g = int(100 * fade * flicker)
-                b = int(255 * fade * flicker)
-            else:
-                r = g = b = 0
-            neo.set_led_color(i, r, g, b)
-        neo.update_strip()
-        time.sleep(0.02)
-    neo.fill_strip(0, 0, 0)
-    neo.update_strip()
-
-# Smooth animation of servo and LED effects during spell
-
-def move_servo_smoothly(target_func):
-    duration = 1.2
-    servo_steps = 30
-    led_refresh_delay = 0.005
-    start_time = time.time()
-    last_servo_step = -1
-
-    while True:
-        elapsed = time.time() - start_time
-        progress = min(elapsed / duration, 1)
-        fade_in = min(progress * 1.5, 1)
-        beat_phase = math.sin(time.time() * 2 * math.pi * 1.2)
-        brightness_scale = 0.7 + 0.3 * (0.5 + 0.5 * beat_phase)
-        current_step = int(progress * servo_steps)
-        if servo and current_step != last_servo_step:
-            val = -1 + progress * 2 if target_func == "open" else 1 - progress * 2
-            servo.value = val
-            last_servo_step = current_step
-        for j in range(num_leds):
-            wave_phase = elapsed * 25 + j * 0.3
-            wave = 0.5 + 0.5 * math.sin(wave_phase)
-            flicker = 0.95 + 0.1 * math.sin(elapsed * 60 + j)
-            if target_func == "open":
-                r = int(lerp(100, 180, wave) * flicker * fade_in * brightness_scale)
-                g = int(lerp(30, 60, wave) * flicker * fade_in * brightness_scale)
-                b = int(lerp(180, 255, wave) * flicker * fade_in * brightness_scale)
-            else:
-                r = int(lerp(30, 70, wave) * flicker * fade_in * brightness_scale)
-                g = int(lerp(100, 200, wave) * flicker * fade_in * brightness_scale)
-                b = int(lerp(200, 255, wave) * flicker * fade_in * brightness_scale)
-            if random.random() < 0.02:
-                r, g, b = 255, 255, 255
-            neo.set_led_color(j, r, g, b)
-        neo.update_strip()
-        time.sleep(led_refresh_delay)
-        if progress >= 1:
-            break
-    spell_fade_out(target_func)
-    time.sleep(0.2)
-    if servo:
-        servo.detach()
-
-# Play sound with volume ducking
-
-def play_spell_sound(sound_effect):
-    bg_volume = config.audio.background_volume if USE_CONFIG else 0.6
-    mixer.music.set_volume(bg_volume * 0.67)  # Duck to 67% during spell
-    sound_effect.play()
-    time.sleep(0.1)
-    mixer.music.set_volume(bg_volume)
-
+# === Prediction Thread ===
 # Handles image preprocessing and model inference in a thread
 def threaded_predict(mask):
     global lastMove, predicting
+    bg_volume = config.audio.background_volume if USE_CONFIG else 0.6
+
     try:
         mask = cv2.GaussianBlur(mask, (5, 5), 0)
         _, mask = cv2.threshold(mask, 80, 255, cv2.THRESH_BINARY)
@@ -234,25 +208,28 @@ def threaded_predict(mask):
         mask = cv2.dilate(mask, (3, 3))
         cv2.imwrite(LASTFRAME_PATH, mask)
 
-        from HarryPotterWandsklearn import predict_spell
+        from harry_potter_wand_sklearn import predict_spell
         prediction = str(predict_spell(LASTFRAME_PATH, MODEL_PATH))
         print("Prediction:", prediction)
 
         if prediction == "0" and lastMove == 0:
             print("Alohamora!!")
-            play_spell_sound(ALOHA_SOUND)
-            move_servo_smoothly("open")
+            play_spell_sound(ALOHA_SOUND, bg_volume)
+            move_servo_smoothly(neo, servo, "open")
             lastMove = 1
         elif prediction == "1" and lastMove == 1:
             print("Colloportus!!")
-            play_spell_sound(COLLO_SOUND)
-            move_servo_smoothly("close")
+            play_spell_sound(COLLO_SOUND, bg_volume)
+            move_servo_smoothly(neo, servo, "close")
             lastMove = 0
     finally:
         with prediction_lock:
             predicting = False
 
 # === Main Loop ===
+# Initialize gesture state
+state = GestureState()
+
 try:
     while True:
         # Read and flip camera feed
@@ -272,86 +249,66 @@ try:
             x, y = points_array[0]
             current_position = (x, y)
             blob_movement = 0
-            if last_blob_position:
-                blob_movement = math.hypot(x - last_blob_position[0], y - last_blob_position[1])
+            if state.last_blob_position:
+                blob_movement = math.hypot(x - state.last_blob_position[0], y - state.last_blob_position[1])
 
             # Start trace if wand is present and moving
-            if not trace_started:
-                if trace_start_time is None:
-                    trace_start_time = current_time
-                elif current_time - trace_start_time > presence_duration_threshold and blob_movement > movement_threshold:
-                    trace_started = True
-                    print("Start Tracing!!")
-                    points.clear()
-                    status_text = "Tracing..."
+            if not state.trace_started:
+                if state.trace_start_time is None:
+                    state.trace_start_time = current_time
+                elif current_time - state.trace_start_time > presence_duration_threshold and blob_movement > movement_threshold:
+                    state.start_trace()
             else:
                 # Add wand path to points
-                if not np.isnan(x) and not np.isnan(y):
-                    points.append((int(x), int(y)))
-                for i in range(1, len(points)):
-                    pt1 = points[i - 1]
-                    pt2 = points[i]
+                state.add_trace_point(x, y)
+                for i in range(1, len(state.points)):
+                    pt1 = state.points[i - 1]
+                    pt2 = state.points[i]
                     if pt1 and pt2:
                         cv2.line(output_frame, pt1, pt2, (255, 255, 0), 7)
-                last_valid_output_frame = output_frame.copy()
+                state.last_valid_output_frame = output_frame.copy()
 
                 # Track if wand is staying still
-                if blob_movement < movement_threshold:
-                    stillness_timer += 1
-                else:
-                    stillness_timer = 0
+                state.update_stillness(blob_movement, movement_threshold)
 
                 # Cancel short traces
-                if len(points) < 10 and stillness_timer > (stillness_duration_threshold / 0.05):
+                if state.is_trace_too_short(stillness_duration_threshold):
                     print("Canceled trace — likely a reflection.")
-                    trace_started = False
-                    trace_start_time = None
-                    last_blob_position = None
-                    stillness_timer = 0
-                    status_text = "Canceled."
+                    state.reset_trace()
                     time.sleep(0.5)
                     continue
 
                 # Spell casting complete when still long enough
-                if stillness_timer > (stillness_duration_threshold / 0.05):
+                if state.is_trace_complete(stillness_duration_threshold):
                     print("Tracing Done!!")
-                    mask = cv2.inRange(last_valid_output_frame, np.array([255, 255, 0]), np.array([255, 255, 0]))
+                    mask = cv2.inRange(state.last_valid_output_frame, np.array([255, 255, 0]), np.array([255, 255, 0]))
                     with prediction_lock:
                         if not predicting:
                             predicting = True
                             Thread(target=threaded_predict, args=(mask,)).start()
-                    trace_started = False
-                    trace_start_time = None
-                    last_blob_position = None
-                    stillness_timer = 0
-                    status_text = "Ready..."
+                    state.reset_trace()
                     time.sleep(1)
                     continue
 
-            last_blob_position = current_position
-            last_blob_time = current_time
+            state.update_position(current_position, current_time)
         else:
             # Trigger prediction if wand leaves the frame while tracing
-            if trace_started and last_blob_time and time.time() - last_blob_time > stillness_duration_threshold:
+            if state.trace_started and state.last_blob_time and time.time() - state.last_blob_time > stillness_duration_threshold:
                 print("Tracing Done (Wand Left Frame)!!")
-                mask = cv2.inRange(last_valid_output_frame, np.array([255, 255, 0]), np.array([255, 255, 0]))
+                mask = cv2.inRange(state.last_valid_output_frame, np.array([255, 255, 0]), np.array([255, 255, 0]))
                 with prediction_lock:
                     if not predicting:
                         predicting = True
                         Thread(target=threaded_predict, args=(mask,)).start()
-                trace_started = False
-                trace_start_time = None
-                last_blob_position = None
-                stillness_timer = 0
-                status_text = "Ready..."
+                state.reset_trace()
                 time.sleep(1)
                 continue
-            trace_start_time = None
+            state.trace_start_time = None
 
         # Draw status and visuals
-        cv2.putText(output_frame, status_text, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
-                    (0, 255, 0) if status_text == "Ready..." else (0, 100, 255), 2)
-        if trace_started and int(time.time() * 4) % 2 == 0:
+        cv2.putText(output_frame, state.status_text, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+                    (0, 255, 0) if state.status_text == "Ready..." else (0, 100, 255), 2)
+        if state.trace_started and int(time.time() * 4) % 2 == 0:
             cv2.rectangle(output_frame, (5, 5), (635, 475), (255, 0, 0), 3)
 
         cv2.imshow("Wand Tracking", output_frame)

@@ -121,7 +121,7 @@ This will check:
 ### Running the Wand Tracker
 
 ```bash
-python3 HarryPotterWandcv.py
+python3 harry_potter_wand_cv.py
 ```
 
 **That's it!** No manual path editing required.
@@ -369,7 +369,7 @@ ir_led.value = 0.5  # 50% brightness
    servo.max()  # Test max position
    ```
 
-**Note:** The existing code in `HarryPotterWandcv.py` will work with this setup. If you skip servo, comment out servo-related lines (11, 40-43, 112-151, 178, 183, 301) or the script will error on servo import.
+**Note:** The existing code in `harry_potter_wand_cv.py` will work with this setup. If you skip servo, comment out servo-related lines (11, 40-43, 112-151, 178, 183, 301) or the script will error on servo import.
 
 ---
 
@@ -461,7 +461,7 @@ import time; time.sleep(3)
 
 ### 5. Calibrate Blob Detector
 
-The SimpleBlobDetector parameters (lines 50-62 in `HarryPotterWandcv.py`) may need adjustment:
+The SimpleBlobDetector parameters (lines 50-62 in `harry_potter_wand_cv.py`) may need adjustment:
 
 ```python
 params.minThreshold = 180  # Adjust if wand tip not detected
@@ -472,7 +472,7 @@ params.minCircularity = 0.75  # Lower if wand tip not perfectly round
 ```
 
 **Tuning Process:**
-1. Run script: `python3 HarryPotterWandcv.py`
+1. Run script: `python3 harry_potter_wand_cv.py`
 2. Wave wand in camera view
 3. If wand not detected: lower `minThreshold` or `minCircularity`
 4. If false detections: increase `minThreshold` or `minArea`
@@ -493,7 +493,7 @@ params.minCircularity = 0.75  # Lower if wand tip not perfectly round
 
 2. **Run Main Script:**
    ```bash
-   python3 HarryPotterWandcv.py
+   python3 harry_potter_wand_cv.py
    ```
 
 3. **Windows That Appear:**
@@ -668,7 +668,7 @@ All code runs on-device using multithreaded Python on Raspberry Pi 5.
 
 ## File Overview
 
-**HarryPotterWandcv.py**
+**harry_potter_wand_cv.py**
 
 ↳ Main runtime script: blob detection, trace drawing, spell prediction, and show control.
 

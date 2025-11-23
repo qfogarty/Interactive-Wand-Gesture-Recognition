@@ -14,7 +14,11 @@
       "WebFetch(domain:www.raspberrypi-spy.co.uk)",
       "Bash(python3:*)",
       "Bash(chmod:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(test:*)",
+      "Bash(pip3 install:*)",
+      "Bash(git mv:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
