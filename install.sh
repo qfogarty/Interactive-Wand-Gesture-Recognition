@@ -82,8 +82,12 @@ echo ""
 # STEP 3: Install Python Packages
 # ============================================================================
 echo -e "${BLUE}[3/7] Installing Python packages...${NC}"
-pip3 install --upgrade pip
-pip3 install \
+
+# Use --break-system-packages for PEP 668 compliance (Raspberry Pi OS Bookworm+)
+PIP_FLAGS="--break-system-packages"
+
+pip3 install --upgrade pip $PIP_FLAGS
+pip3 install $PIP_FLAGS \
     numpy \
     opencv-python \
     "scikit-learn>=1.6.0" \
