@@ -86,7 +86,8 @@ else:
 
 # === LED Strip Initialization (Optional) ===
 neo = None
-led_enabled = config.hardware.led.enabled if USE_CONFIG else False
+# Use .get() for backward compatibility with configs missing 'enabled' field
+led_enabled = config.hardware.led.get('enabled', True) if USE_CONFIG else False
 
 if led_enabled:
     try:
