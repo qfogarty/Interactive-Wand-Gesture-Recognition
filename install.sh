@@ -86,7 +86,7 @@ pip3 install --upgrade pip
 pip3 install \
     numpy \
     opencv-python \
-    scikit-learn \
+    "scikit-learn>=1.6.0" \
     joblib \
     pillow \
     pandas \
