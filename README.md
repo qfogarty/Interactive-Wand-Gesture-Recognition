@@ -16,7 +16,7 @@ This project uses a Raspberry Pi 5, camera, and machine learning to recognize wa
 - Raspberry Pi Camera Module 3 NoIR (Wide Angle)
 - WS2812B LED Strip (30+ LEDs)
 - IR Illuminator (850nm)
-- A wand with an IR LED tip
+- A wand with an IR LED tip **OR** a Universal Studios interactive wand (reflector-based)
 
 **Optional:**
 - Servo motor (for physical box opening effect)
@@ -80,6 +80,37 @@ Press **q** to quit.
 
 ---
 
+## Using Reflector Wands (Universal Studios)
+
+Have an official Universal Studios interactive wand? These use IR reflectors instead of LEDs and require a different detection mode.
+
+### Setup
+
+1. **Ensure you have an IR illuminator** positioned near your camera (ring-light style works best)
+
+2. **Enable reflector mode** in `config.yaml`:
+   ```yaml
+   detection:
+     wand_type: "reflector"
+   ```
+
+3. **Run the application** - you should see:
+   ```
+   ✓ Reflector wand mode enabled
+   ```
+
+### Tuning Tips
+
+If detection is inconsistent, adjust these values in `config.yaml` under `detection.reflector`:
+
+| Setting | Default | Try if... |
+|---------|---------|-----------|
+| `blob_detector.min_threshold` | 80 | Wand not detected → lower to 60 |
+| `kalman.max_jump_distance` | 100 | Tracking too strict → increase to 150 |
+| `temporal.required_frames` | 3 | Response too slow → lower to 2 |
+
+---
+
 ## Add Your Own Spells
 
 Want to create new spells? It's easy:
@@ -107,6 +138,7 @@ That's it! The new spell will be recognized. To add custom LED colors and sounds
 |---------|-----------|
 | LEDs not working | Run `ls /dev/spidev0.0` - if missing, enable SPI in `raspi-config` |
 | Wand not detected | Check the "Gray Feed" window - wand tip should be a bright white dot |
+| Reflector wand not detected | Set `wand_type: "reflector"` in config.yaml. Ensure IR illuminator is on and near camera |
 | No sound | Run `speaker-test -t wav -c 2` to test audio output |
 | Spell not recognized | Draw gestures more deliberately, hold still at the end |
 

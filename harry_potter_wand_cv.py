@@ -132,6 +132,16 @@ params.filterByInertia = 1
 # Creates the configured blob detector
 detector = cv2.SimpleBlobDetector_create(params)
 
+# === Reflector Detector (Optional) ===
+reflector_detector = None
+if USE_CONFIG and config.detection.get('wand_type', 'led') == 'reflector':
+    from utils.reflector_detector import ReflectorDetector
+    reflector_detector = ReflectorDetector(config)
+    reflector_detector.initialize()
+    print("✓ Reflector wand mode enabled")
+else:
+    print("LED wand mode enabled")
+
 # === Gesture State Management ===
 class GestureState:
     """Manages wand gesture tracking state"""
@@ -270,7 +280,17 @@ try:
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
         # Detect wand tip blob
-        keypoints = detector.detect(gray)
+        if reflector_detector:
+            # Reflector mode: use advanced filtering pipeline
+            position = reflector_detector.detect(gray)
+            if position:
+                keypoints = [cv2.KeyPoint(float(position[0]), float(position[1]), 20)]
+            else:
+                keypoints = []
+        else:
+            # LED mode: use standard blob detector
+            keypoints = detector.detect(gray)
+
         output_frame = cv2.drawKeypoints(gray, keypoints, np.array([]), (0, 0, 255),
                                          cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
@@ -307,6 +327,8 @@ try:
                 if state.is_trace_too_short(stillness_duration_threshold):
                     print("Canceled trace — likely a reflection.")
                     state.reset_trace()
+                    if reflector_detector:
+                        reflector_detector.reset()
                     time.sleep(0.5)
                     continue
 
@@ -319,6 +341,8 @@ try:
                             predicting = True
                             Thread(target=threaded_predict, args=(mask,)).start()
                     state.reset_trace()
+                    if reflector_detector:
+                        reflector_detector.reset()
                     time.sleep(1)
                     continue
 
@@ -333,6 +357,8 @@ try:
                         predicting = True
                         Thread(target=threaded_predict, args=(mask,)).start()
                 state.reset_trace()
+                if reflector_detector:
+                    reflector_detector.reset()
                 time.sleep(1)
                 continue
             state.trace_start_time = None

@@ -35,7 +35,10 @@ hardware:
     pwm_frequency: 1000
 
 detection:
-  # Blob Detector Parameters
+  # Wand type: "led" (active IR LED) or "reflector" (passive Universal Studios wands)
+  wand_type: "led"
+
+  # Blob Detector Parameters (for LED mode)
   blob_detector:
     min_threshold: 180
     max_threshold: 255
@@ -49,6 +52,33 @@ detection:
     presence_duration: 0.6  # seconds
     stillness_duration: 1.0  # seconds
     movement_threshold: 6  # pixels
+
+  # Reflector mode configuration (for passive IR reflector wands)
+  reflector:
+    # MOG2 background subtraction - isolates moving reflections
+    mog2:
+      history: 120          # Frames of history (~2 sec at 60fps)
+      var_threshold: 25     # Lower = more sensitive to changes
+      learning_rate: -1     # -1 = auto, or 0.001-0.01 for manual
+
+    # Relaxed blob detector for dimmer/irregular reflections
+    blob_detector:
+      min_threshold: 80     # Much lower for dim reflectors
+      max_threshold: 255
+      min_area: 10
+      max_area: 800
+      min_circularity: 0.4  # Relaxed for irregular shapes
+      min_inertia_ratio: 0.2
+
+    # Kalman filter smoothing
+    kalman:
+      process_noise: 0.03       # Motion model trust
+      measurement_noise: 0.5    # Detection trust (higher = less)
+      max_jump_distance: 100    # Pixels - reject outliers beyond this
+
+    # Temporal validation
+    temporal:
+      required_frames: 3    # Consecutive detections needed
 
 audio:
   background_volume: 0.6  # 0.0 to 1.0
