@@ -75,8 +75,8 @@ class ReflectorDetector:
             for key in defaults:
                 if key not in reflector_cfg:
                     reflector_cfg[key] = defaults[key]
-                else:
-                    # Merge nested dicts
+                elif isinstance(defaults[key], dict):
+                    # Merge nested dicts only if default is a dict
                     for subkey in defaults[key]:
                         if subkey not in reflector_cfg[key]:
                             reflector_cfg[key][subkey] = defaults[key][subkey]
