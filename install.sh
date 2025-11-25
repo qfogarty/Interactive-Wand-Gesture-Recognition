@@ -71,7 +71,7 @@ sudo apt-get install -y \
     libv4l-dev \
     libxvidcore-dev \
     libx264-dev \
-    libatlas-base-dev \
+    libopenblas-dev \
     gfortran \
     python3-yaml
 
