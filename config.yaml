@@ -8,6 +8,7 @@ project:
 hardware:
   # LED Strip Configuration
   led:
+    enabled: false  # Set to true when LED strip is connected
     count: 30
     timing: 800  # 800 for WS2812B
     spi_device: "/dev/spidev0.0"

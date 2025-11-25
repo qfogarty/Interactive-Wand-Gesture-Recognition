@@ -6,7 +6,6 @@ from threading import Thread, Lock
 import cv2
 import numpy as np
 from picamera2 import Picamera2
-from pi5neo import Pi5Neo
 from pygame import mixer
 
 from utils.animations import move_servo_smoothly, spell_fade_out
@@ -85,16 +84,27 @@ if servo_enabled:
 else:
     print("Servo disabled in config")
 
-# === LED Strip Initialization ===
-if USE_CONFIG:
-    neo = Pi5Neo(
-        config.hardware.led.spi_device,
-        config.hardware.led.count,
-        config.hardware.led.timing
-    )
+# === LED Strip Initialization (Optional) ===
+neo = None
+led_enabled = config.hardware.led.enabled if USE_CONFIG else False
+
+if led_enabled:
+    try:
+        from pi5neo import Pi5Neo
+        if USE_CONFIG:
+            neo = Pi5Neo(
+                config.hardware.led.spi_device,
+                config.hardware.led.count,
+                config.hardware.led.timing
+            )
+        else:
+            neo = Pi5Neo('/dev/spidev0.0', 30, 800)
+        print("✓ LED strip initialized")
+    except Exception as e:
+        print(f"WARNING: LED initialization failed: {e}")
+        neo = None
 else:
-    neo = Pi5Neo('/dev/spidev0.0', 30, 800)
-num_leds = neo.num_leds
+    print("LED strip disabled in config")
 
 # === Blob Detector Configuration ===
 params = cv2.SimpleBlobDetector_Params()
@@ -195,6 +205,25 @@ else:
 predicting = False
 prediction_lock = Lock()  # Ensures only one prediction runs at a time
 
+
+def screen_flash_feedback(spell_type):
+    """Flash screen border when LEDs are disabled for visual feedback."""
+    if neo is not None:
+        return  # LEDs handle the feedback
+
+    # Spell colors: purple for open, blue for close
+    color = (180, 60, 255) if spell_type == "open" else (70, 200, 255)
+
+    # Create a colored frame and flash it
+    for _ in range(8):
+        flash_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.rectangle(flash_frame, (0, 0), (640, 480), color, 15)
+        cv2.putText(flash_frame, spell_type.upper(), (220, 250),
+                    cv2.FONT_HERSHEY_SIMPLEX, 2, color, 3)
+        cv2.imshow("Wand Tracking", flash_frame)
+        cv2.waitKey(60)
+
+
 # === Prediction Thread ===
 # Handles image preprocessing and model inference in a thread
 def threaded_predict(mask):
@@ -216,11 +245,13 @@ def threaded_predict(mask):
             print("Alohamora!!")
             play_spell_sound(ALOHA_SOUND, bg_volume)
             move_servo_smoothly(neo, servo, "open")
+            screen_flash_feedback("open")
             lastMove = 1
         elif prediction == "1" and lastMove == 1:
             print("Colloportus!!")
             play_spell_sound(COLLO_SOUND, bg_volume)
             move_servo_smoothly(neo, servo, "close")
+            screen_flash_feedback("close")
             lastMove = 0
     finally:
         with prediction_lock:
@@ -323,7 +354,8 @@ finally:
     cv2.destroyAllWindows()
     if servo:
         servo.detach()
-    neo.fill_strip(0, 0, 0)
-    neo.update_strip()
+    if neo:
+        neo.fill_strip(0, 0, 0)
+        neo.update_strip()
     mixer.music.stop()
     print("Exited safely.")

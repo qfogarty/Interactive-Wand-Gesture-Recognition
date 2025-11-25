@@ -20,9 +20,13 @@ def spell_fade_out(neo, spell):
     Fade out LED animation after spell completion.
 
     Args:
-        neo: Pi5Neo LED strip instance
+        neo: Pi5Neo LED strip instance (or None if disabled)
         spell: Spell type ("open" or "close")
     """
+    if neo is None:
+        print(f"[SPELL COMPLETE] {spell}")
+        return
+
     num_leds = neo.num_leds
     steps = 20
 
@@ -53,10 +57,27 @@ def move_servo_smoothly(neo, servo, target_func):
     Smooth servo animation with synchronized LED effects.
 
     Args:
-        neo: Pi5Neo LED strip instance
+        neo: Pi5Neo LED strip instance (or None if disabled)
         servo: Servo motor instance (or None if disabled)
         target_func: Target spell ("open" or "close")
     """
+    # Handle case where LEDs are disabled
+    if neo is None:
+        print(f"[SPELL EFFECT] {target_func.upper()} animation")
+        if servo:
+            # Do servo movement without LED sync
+            duration = 1.2
+            steps = 30
+            for step in range(steps):
+                progress = step / steps
+                val = -1 + progress * 2 if target_func == "open" else 1 - progress * 2
+                servo.value = val
+                time.sleep(duration / steps)
+            servo.detach()
+        else:
+            time.sleep(1.2)  # Simulate animation duration
+        return
+
     num_leds = neo.num_leds
     duration = 1.2
     servo_steps = 30
