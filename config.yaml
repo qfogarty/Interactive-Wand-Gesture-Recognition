@@ -70,6 +70,10 @@ detection:
       min_circularity: 0.4  # Relaxed for irregular shapes
       min_inertia_ratio: 0.2
 
+    # Brightness threshold - reflector must be this bright to be detected
+    # Increase if detecting random movement, decrease if wand not detected
+    brightness_threshold: 120
+
     # Kalman filter smoothing
     kalman:
       process_noise: 0.03       # Motion model trust

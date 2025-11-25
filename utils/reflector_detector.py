@@ -33,9 +33,13 @@ class ReflectorDetector:
         self._init_mog2()
         self._init_kalman()
         self._init_blob_detector()
+        # Get brightness threshold from config
+        cfg = self._get_reflector_config()
+        self.brightness_threshold = cfg.get('brightness_threshold', 120)
         print("  MOG2 background subtractor: ready")
         print("  Kalman filter: ready")
-        print("  Blob detector (reflector params): ready")
+        print(f"  Blob detector (reflector params): ready")
+        print(f"  Brightness threshold: {self.brightness_threshold}")
 
     def _get_reflector_config(self):
         """Get reflector config with defaults."""
@@ -53,6 +57,7 @@ class ReflectorDetector:
                 'min_circularity': 0.4,
                 'min_inertia_ratio': 0.2
             },
+            'brightness_threshold': 120,  # Minimum brightness to consider as reflector
             'kalman': {
                 'process_noise': 0.03,
                 'measurement_noise': 0.5,
@@ -173,8 +178,8 @@ class ReflectorDetector:
         # Step 1: Apply background subtraction to isolate moving objects
         fg_mask = self.bg_subtractor.apply(gray_frame, learningRate=self.learning_rate)
 
-        # Step 2: Create brightness mask for reflector signals
-        _, bright_mask = cv2.threshold(gray_frame, 60, 255, cv2.THRESH_BINARY)
+        # Step 2: Create brightness mask for reflector signals (must be bright!)
+        _, bright_mask = cv2.threshold(gray_frame, self.brightness_threshold, 255, cv2.THRESH_BINARY)
 
         # Step 3: Combine masks - must be both moving AND bright
         combined_mask = cv2.bitwise_and(fg_mask, bright_mask)

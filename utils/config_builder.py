@@ -5,6 +5,57 @@ Constructs config.yaml structure from user inputs.
 """
 
 
+def _build_detection_config(hw_config: dict, detect_config: dict) -> dict:
+    """Build detection config, including reflector section if needed."""
+    wand_type = hw_config.get('wand_type', 'led')
+
+    config = {
+        'wand_type': wand_type,
+        'blob_detector': {
+            'min_threshold': detect_config['min_threshold'],
+            'max_threshold': detect_config['max_threshold'],
+            'min_area': detect_config['min_area'],
+            'max_area': detect_config['max_area'],
+            'min_circularity': detect_config['min_circularity'],
+            'min_inertia_ratio': detect_config['min_inertia']
+        },
+        'gesture': {
+            'presence_duration': detect_config['presence_duration'],
+            'stillness_duration': detect_config['stillness_duration'],
+            'movement_threshold': detect_config['movement_threshold']
+        }
+    }
+
+    # Add reflector config section if reflector wand selected
+    if wand_type == 'reflector':
+        config['reflector'] = {
+            'mog2': {
+                'history': 120,
+                'var_threshold': 25,
+                'learning_rate': -1
+            },
+            'blob_detector': {
+                'min_threshold': 80,
+                'max_threshold': 255,
+                'min_area': 10,
+                'max_area': 800,
+                'min_circularity': 0.4,
+                'min_inertia_ratio': 0.2
+            },
+            'brightness_threshold': 120,
+            'kalman': {
+                'process_noise': 0.03,
+                'measurement_noise': 0.5,
+                'max_jump_distance': 100
+            },
+            'temporal': {
+                'required_frames': 3
+            }
+        }
+
+    return config
+
+
 def build_final_config(hw_config: dict, detect_config: dict, audio_config: dict) -> dict:
     """
     Build complete configuration structure from component configs.
@@ -47,22 +98,7 @@ def build_final_config(hw_config: dict, detect_config: dict, audio_config: dict)
                 'pwm_frequency': hw_config.get('ir_pwm_freq', 1000)
             }
         },
-        'detection': {
-            'wand_type': hw_config.get('wand_type', 'led'),
-            'blob_detector': {
-                'min_threshold': detect_config['min_threshold'],
-                'max_threshold': detect_config['max_threshold'],
-                'min_area': detect_config['min_area'],
-                'max_area': detect_config['max_area'],
-                'min_circularity': detect_config['min_circularity'],
-                'min_inertia_ratio': detect_config['min_inertia']
-            },
-            'gesture': {
-                'presence_duration': detect_config['presence_duration'],
-                'stillness_duration': detect_config['stillness_duration'],
-                'movement_threshold': detect_config['movement_threshold']
-            }
-        },
+        'detection': _build_detection_config(hw_config, detect_config),
         'audio': {
             'background_volume': audio_config['background_volume'],
             'spell_volume': audio_config['spell_volume']
