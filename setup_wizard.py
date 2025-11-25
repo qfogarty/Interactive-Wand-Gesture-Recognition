@@ -129,6 +129,24 @@ def configure_ir_illuminator() -> tuple:
         )
 
 
+def configure_wand_type() -> dict:
+    """Configure wand type (LED or reflector)"""
+    print(f"\n{Colors.BOLD}Wand Type:{Colors.NC}")
+    print("Choose your wand type:")
+    print("  1. IR LED wand (DIY wand with IR LED in tip)")
+    print("  2. Reflector wand (Universal Studios interactive wand)")
+
+    choice = input(f"{Colors.YELLOW}Select option [1/2]{Colors.NC}: ").strip()
+
+    if choice == "2":
+        print(f"{Colors.GREEN}✓ Reflector wand selected{Colors.NC}")
+        print("  Advanced filtering will be enabled for passive IR detection")
+        return {'wand_type': 'reflector'}
+    else:
+        print(f"{Colors.GREEN}✓ LED wand selected{Colors.NC}")
+        return {'wand_type': 'led'}
+
+
 def test_camera():
     """Test camera availability"""
     print(f"\n{Colors.BLUE}Testing camera...{Colors.NC}")
@@ -156,6 +174,7 @@ def configure_hardware():
     # Gather configurations
     led_config = configure_led_strip()
     ir_config, camera_adjustments = configure_ir_illuminator()
+    wand_config = configure_wand_type()
     camera_config = configure_camera_settings(camera_adjustments)
     servo_config = configure_servo_motor()
 
@@ -164,7 +183,8 @@ def configure_hardware():
         **led_config,
         **camera_config,
         **servo_config,
-        **ir_config
+        **ir_config,
+        **wand_config
     }
 
 def configure_detection():

@@ -48,6 +48,7 @@ def build_final_config(hw_config: dict, detect_config: dict, audio_config: dict)
             }
         },
         'detection': {
+            'wand_type': hw_config.get('wand_type', 'led'),
             'blob_detector': {
                 'min_threshold': detect_config['min_threshold'],
                 'max_threshold': detect_config['max_threshold'],
