@@ -80,6 +80,27 @@ Press **q** to quit.
 
 ---
 
+## Add Your Own Spells
+
+Want to create new spells? It's easy:
+
+```bash
+cd DatasetCreation
+
+# 1. Draw your new spell gesture 50-100 times
+python3 draw_spell_data.py
+
+# 2. Convert drawings to training data
+python3 convert_to_training_data.py
+
+# 3. Train the model
+python3 train_spell_classifier.py
+```
+
+That's it! The new spell will be recognized. To add custom LED colors and sounds, see the [Custom Spells Guide](docs/TRAINING_CUSTOM_SPELLS.md).
+
+---
+
 ## Common Issues
 
 | Problem | Quick Fix |
