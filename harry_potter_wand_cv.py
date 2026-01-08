@@ -237,6 +237,9 @@ def screen_flash_feedback(spell_type):
 
 # === Prediction Thread ===
 # Handles image preprocessing and model inference in a thread
+# Import at module level to avoid per-prediction import overhead
+from harry_potter_wand_sklearn import predict_spell_from_array
+
 def threaded_predict(mask):
     global lastMove, predicting
     bg_volume = config.audio.background_volume if USE_CONFIG else 0.6
@@ -246,10 +249,9 @@ def threaded_predict(mask):
         _, mask = cv2.threshold(mask, 80, 255, cv2.THRESH_BINARY)
         mask = cv2.resize(mask, (28, 28), interpolation=cv2.INTER_AREA)
         mask = cv2.dilate(mask, (3, 3))
-        cv2.imwrite(LASTFRAME_PATH, mask)
 
-        from harry_potter_wand_sklearn import predict_spell
-        prediction = str(predict_spell(LASTFRAME_PATH, MODEL_PATH))
+        # Use array-based prediction to skip disk I/O (saves ~10-20ms)
+        prediction = str(predict_spell_from_array(mask, MODEL_PATH))
         print("Prediction:", prediction)
 
         if prediction == "0" and lastMove == 0:

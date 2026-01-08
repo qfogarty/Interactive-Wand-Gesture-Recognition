@@ -17,7 +17,17 @@ from typing import Optional, Tuple
 class ReflectorDetector:
     """
     Advanced wand tip detector optimized for passive IR reflector wands.
+
+    Performance optimizations:
+    - Pre-allocated morphological kernel
+    - Cached config values at initialization
+    - Pre-allocated numpy buffers for Kalman filter
+    - Squared distance comparison to avoid sqrt
+    - Direct consecutive detection tracking
     """
+
+    # Pre-allocated morphological kernel (class constant)
+    _MORPH_KERNEL = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 
     def __init__(self, config):
         self.config = config
@@ -28,14 +38,30 @@ class ReflectorDetector:
         self.is_tracking = False
         self.frames_since_detection = 0
 
+        # Cached config values (set in initialize())
+        self.brightness_threshold = 180
+        self.max_jump_distance = 100
+        self._max_jump_sq = 10000  # Squared for fast comparison
+        self._required_frames = 3
+        self._consecutive_detections = 0
+
+        # Pre-allocated buffers for Kalman filter
+        self._measurement_buffer = np.zeros((2, 1), dtype=np.float32)
+        self._state_buffer = np.zeros((4, 1), dtype=np.float32)
+
     def initialize(self):
         """Initialize all detection components."""
+        # Cache config values once at initialization
+        cfg = self._get_reflector_config()
+        self.brightness_threshold = cfg.get('brightness_threshold', 180)
+        self._required_frames = cfg['temporal'].get('required_frames', 3)
+        self.max_jump_distance = cfg['kalman'].get('max_jump_distance', 100)
+        self._max_jump_sq = self.max_jump_distance ** 2
+
         self._init_mog2()
         self._init_kalman()
         self._init_blob_detector()
-        # Get brightness threshold from config
-        cfg = self._get_reflector_config()
-        self.brightness_threshold = cfg.get('brightness_threshold', 120)
+
         print("  MOG2 background subtractor: ready")
         print("  Kalman filter: ready")
         print(f"  Blob detector (reflector params): ready")
@@ -184,10 +210,9 @@ class ReflectorDetector:
         # Step 3: Combine masks - must be both moving AND bright
         combined_mask = cv2.bitwise_and(fg_mask, bright_mask)
 
-        # Step 4: Morphological cleanup to remove noise
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
-        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
+        # Step 4: Morphological cleanup to remove noise (using pre-allocated kernel)
+        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, self._MORPH_KERNEL)
+        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, self._MORPH_KERNEL)
 
         # Step 5: Blob detection on combined mask
         keypoints = self.blob_detector.detect(combined_mask)
@@ -215,22 +240,25 @@ class ReflectorDetector:
         if detection is not None:
             det_x, det_y = detection
 
-            # Calculate distance from prediction
-            distance = np.sqrt((det_x - pred_x)**2 + (det_y - pred_y)**2)
+            # Use squared distance to avoid expensive sqrt
+            dist_sq = (det_x - pred_x)**2 + (det_y - pred_y)**2
 
             if not self.is_tracking:
-                # First detection - initialize filter state
-                self.kalman.statePost = np.array([
-                    [det_x], [det_y], [0], [0]
-                ], np.float32)
+                # First detection - initialize filter state (reuse buffer)
+                self._state_buffer[0, 0] = det_x
+                self._state_buffer[1, 0] = det_y
+                self._state_buffer[2, 0] = 0
+                self._state_buffer[3, 0] = 0
+                self.kalman.statePost = self._state_buffer
                 self.is_tracking = True
                 self.frames_since_detection = 0
                 return (int(det_x), int(det_y))
 
-            elif distance < self.max_jump_distance:
-                # Valid detection within expected range - update filter
-                measurement = np.array([[np.float32(det_x)], [np.float32(det_y)]])
-                corrected = self.kalman.correct(measurement)
+            elif dist_sq < self._max_jump_sq:
+                # Valid detection within expected range - update filter (reuse buffer)
+                self._measurement_buffer[0, 0] = det_x
+                self._measurement_buffer[1, 0] = det_y
+                corrected = self.kalman.correct(self._measurement_buffer)
                 self.frames_since_detection = 0
                 return (int(corrected[0]), int(corrected[1]))
             else:
@@ -252,21 +280,17 @@ class ReflectorDetector:
 
     def _temporal_validate(self, position: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
         """Require N consecutive detections to validate."""
-        cfg = self._get_reflector_config()['temporal']
-        required_frames = cfg.get('required_frames', 3)
+        # Track consecutive detections directly instead of iterating
+        if position is not None:
+            self._consecutive_detections += 1
+        else:
+            self._consecutive_detections = 0
 
+        # Keep history for debugging/analysis purposes
         self.detection_history.append(position)
 
-        # Count consecutive valid detections from the end
-        consecutive = 0
-        for det in reversed(self.detection_history):
-            if det is not None:
-                consecutive += 1
-            else:
-                break
-
         # Only return position if we have enough consecutive detections
-        if consecutive >= required_frames:
+        if self._consecutive_detections >= self._required_frames:
             return position
         return None
 
@@ -274,9 +298,12 @@ class ReflectorDetector:
         """Reset tracking state (call when trace completes)."""
         self.is_tracking = False
         self.frames_since_detection = 0
+        self._consecutive_detections = 0
         self.detection_history.clear()
-        # Re-initialize Kalman filter to clear state
-        self._init_kalman()
+        # Reset Kalman state without recreating the filter object
+        self._state_buffer.fill(0)
+        self.kalman.statePost = self._state_buffer
+        self.kalman.errorCovPost = np.eye(4, dtype=np.float32)
 
     def get_debug_mask(self, gray_frame) -> np.ndarray:
         """

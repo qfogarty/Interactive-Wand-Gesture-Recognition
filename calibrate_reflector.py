@@ -73,6 +73,9 @@ class ReflectorCalibrator:
         'mog2_var_threshold': 25,
     }
 
+    # Pre-allocated morphological kernel (class constant)
+    _MORPH_KERNEL = np.ones((3, 3), np.uint8)
+
     def __init__(self):
         self.params = dict(self.DEFAULTS)
         self.camera = None
@@ -98,6 +101,13 @@ class ReflectorCalibrator:
         self._last_fg_mask = None
         self._last_bright_mask = None
         self._last_gray = None
+
+        # Cached blob detector (recreated only when params change)
+        self._blob_detector = None
+        self._blob_params_hash = None
+
+        # Pre-computed squared max_jump_distance for faster comparison
+        self._max_jump_sq = self.DEFAULTS['max_jump_distance'] ** 2
 
         self.load_current_config()
 
@@ -141,6 +151,9 @@ class ReflectorCalibrator:
                 if 'var_threshold' in mog2:
                     self.params['mog2_var_threshold'] = mog2['var_threshold']
 
+                # Update cached squared distance
+                self._max_jump_sq = self.params['max_jump_distance'] ** 2
+
                 print("Loaded current settings from config.yaml")
         except Exception as e:
             print(f"Using defaults (couldn't load config: {e})")
@@ -183,8 +196,24 @@ class ReflectorCalibrator:
             detectShadows=False
         )
 
+    def _get_blob_params_hash(self):
+        """Get hash of current blob detector parameters for cache invalidation."""
+        return (
+            self.params['min_threshold'],
+            self.params['min_area'],
+            self.params['max_area'],
+            self.params['min_circularity'],
+            self.params['min_inertia_ratio']
+        )
+
     def create_blob_detector(self):
-        """Create blob detector with current parameters."""
+        """Create blob detector with current parameters (cached)."""
+        # Check if we can use cached detector
+        current_hash = self._get_blob_params_hash()
+        if self._blob_detector is not None and self._blob_params_hash == current_hash:
+            return self._blob_detector
+
+        # Create new detector
         params = cv2.SimpleBlobDetector_Params()
 
         params.minThreshold = self.params['min_threshold']
@@ -204,7 +233,9 @@ class ReflectorCalibrator:
         params.filterByConvexity = False
         params.filterByColor = False
 
-        return cv2.SimpleBlobDetector_create(params)
+        self._blob_detector = cv2.SimpleBlobDetector_create(params)
+        self._blob_params_hash = current_hash
+        return self._blob_detector
 
     def detect_wand(self, frame):
         """Detect wand tip in frame. Returns all intermediate masks for debug."""
@@ -228,10 +259,9 @@ class ReflectorCalibrator:
         # Combine masks
         combined = cv2.bitwise_and(fg_mask, bright_mask)
 
-        # Clean up
-        kernel = np.ones((3, 3), np.uint8)
-        combined = cv2.morphologyEx(combined, cv2.MORPH_OPEN, kernel)
-        combined = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, kernel)
+        # Clean up (using pre-allocated kernel)
+        combined = cv2.morphologyEx(combined, cv2.MORPH_OPEN, self._MORPH_KERNEL)
+        combined = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, self._MORPH_KERNEL)
 
         # Detect blobs
         detector = self.create_blob_detector()
@@ -256,11 +286,10 @@ class ReflectorCalibrator:
         if best_point:
             self.stats['detections_total'] += 1
             if self.last_position:
-                dist = np.sqrt(
-                    (best_point[0] - self.last_position[0])**2 +
-                    (best_point[1] - self.last_position[1])**2
-                )
-                if dist > self.params['max_jump_distance']:
+                # Use squared distance to avoid expensive sqrt
+                dist_sq = ((best_point[0] - self.last_position[0])**2 +
+                           (best_point[1] - self.last_position[1])**2)
+                if dist_sq > self._max_jump_sq:
                     best_point = None  # Reject outlier
 
             if best_point:
@@ -510,8 +539,10 @@ class ReflectorCalibrator:
         # Max jump distance
         elif key == ord('t'):
             self.params['max_jump_distance'] = min(500, self.params['max_jump_distance'] + 10 * self.step_multiplier)
+            self._max_jump_sq = self.params['max_jump_distance'] ** 2
         elif key == ord('g'):
             self.params['max_jump_distance'] = max(20, self.params['max_jump_distance'] - 10 * self.step_multiplier)
+            self._max_jump_sq = self.params['max_jump_distance'] ** 2
 
         # Required frames
         elif key == ord('y'):
@@ -537,6 +568,8 @@ class ReflectorCalibrator:
         # Reset
         elif key == ord(' '):
             self.params = dict(self.DEFAULTS)
+            self._max_jump_sq = self.params['max_jump_distance'] ** 2
+            self._blob_detector = None  # Force blob detector recreation
             self.init_bg_subtractor()  # Reinitialize MOG2 with defaults
             print("Reset to defaults")
 
