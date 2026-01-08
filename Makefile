@@ -1,4 +1,4 @@
-.PHONY: help test test-docker test-local test-syntax test-config test-utils test-docs test-gpio test-mocks test-animations build-test clean
+.PHONY: help test test-docker test-local test-syntax test-config test-utils test-docs test-gpio test-mocks test-animations build-test clean led-demo
 
 help:
 	@echo "Interactive Wand - Testing Commands"
@@ -12,6 +12,9 @@ help:
 	@echo "  make test-gpio        Run GPIO configuration tests"
 	@echo "  make test-mocks       Run hardware mock tests"
 	@echo "  make test-animations  Run animation tests with mocks"
+	@echo ""
+	@echo "Hardware Testing (Raspberry Pi only):"
+	@echo "  make led-demo         Interactive LED animation demo"
 	@echo ""
 	@echo "Docker Testing:"
 	@echo "  make test-docker      Run all tests in Docker"
@@ -93,6 +96,11 @@ test-docker-animations: build-test
 
 # Default target
 test: test-local
+
+# Hardware testing (Raspberry Pi only)
+led-demo:
+	@echo "Starting LED animation demo..."
+	@python3 test_led_demo.py
 
 # Cleanup
 clean:
