@@ -39,7 +39,7 @@ class ReflectorDetector:
         self.frames_since_detection = 0
 
         # Cached config values (set in initialize())
-        self.brightness_threshold = 180
+        self.brightness_threshold = 120
         self.max_jump_distance = 100
         self._max_jump_sq = 10000  # Squared for fast comparison
         self._required_frames = 3
@@ -53,7 +53,7 @@ class ReflectorDetector:
         """Initialize all detection components."""
         # Cache config values once at initialization
         cfg = self._get_reflector_config()
-        self.brightness_threshold = cfg.get('brightness_threshold', 180)
+        self.brightness_threshold = cfg.get('brightness_threshold', 120)
         self._required_frames = cfg['temporal'].get('required_frames', 3)
         self.max_jump_distance = cfg['kalman'].get('max_jump_distance', 100)
         self._max_jump_sq = self.max_jump_distance ** 2
@@ -83,7 +83,7 @@ class ReflectorDetector:
                 'min_circularity': 0.4,
                 'min_inertia_ratio': 0.2
             },
-            'brightness_threshold': 180,  # Minimum brightness to consider as reflector
+            'brightness_threshold': 120,  # Minimum brightness to consider as reflector
             'kalman': {
                 'process_noise': 0.03,
                 'measurement_noise': 0.5,
@@ -244,12 +244,12 @@ class ReflectorDetector:
             dist_sq = (det_x - pred_x)**2 + (det_y - pred_y)**2
 
             if not self.is_tracking:
-                # First detection - initialize filter state (reuse buffer)
+                # First detection - initialize filter state
                 self._state_buffer[0, 0] = det_x
                 self._state_buffer[1, 0] = det_y
                 self._state_buffer[2, 0] = 0
                 self._state_buffer[3, 0] = 0
-                self.kalman.statePost = self._state_buffer
+                self.kalman.statePost = self._state_buffer.copy()
                 self.is_tracking = True
                 self.frames_since_detection = 0
                 return (int(det_x), int(det_y))
@@ -302,7 +302,7 @@ class ReflectorDetector:
         self.detection_history.clear()
         # Reset Kalman state without recreating the filter object
         self._state_buffer.fill(0)
-        self.kalman.statePost = self._state_buffer
+        self.kalman.statePost = self._state_buffer.copy()
         self.kalman.errorCovPost = np.eye(4, dtype=np.float32)
 
     def get_debug_mask(self, gray_frame) -> np.ndarray:
