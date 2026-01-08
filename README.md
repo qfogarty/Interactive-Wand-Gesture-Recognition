@@ -169,9 +169,31 @@ Have an official Universal Studios interactive wand? These use IR reflectors ins
    ✓ Reflector wand mode enabled
    ```
 
-### Tuning Tips
+### Interactive Calibrator
 
-If detection is inconsistent, adjust these values in `config.yaml` under `detection.reflector`:
+Use the interactive calibrator to tune detection settings in real-time:
+
+```bash
+python3 calibrate_reflector.py
+# or
+make calibrate
+```
+
+Wave your wand in front of the camera and adjust settings with keyboard controls:
+
+| Key | Setting | Effect |
+|-----|---------|--------|
+| W/S | brightness_threshold | Higher = less sensitive |
+| E/D | min_threshold | Lower = detect dimmer spots |
+| R/F | min_area | Lower = detect smaller spots |
+| T/G | max_jump_distance | Higher = allow faster movement |
+| Y/H | required_frames | Lower = faster response |
+
+Press **Q** to save settings, **ESC** to quit without saving.
+
+### Manual Tuning
+
+If you prefer manual tuning, adjust these values in `config.yaml` under `detection.reflector`:
 
 | Setting | Default | Try if... |
 |---------|---------|-----------|

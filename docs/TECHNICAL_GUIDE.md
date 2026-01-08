@@ -821,6 +821,38 @@ ls -la /dev/spidev0.0
 groups $USER | grep -E "(spi|gpio|video)"
 ```
 
+### Reflector Wand Calibration
+
+If you're using a Universal Studios interactive wand (reflector-based rather than IR LED):
+
+```bash
+python3 calibrate_reflector.py
+# or
+make calibrate
+```
+
+The interactive calibrator provides:
+- **Real-time camera feed** with detection overlay
+- **Live parameter adjustment** via keyboard controls
+- **Automatic config.yaml updates** on save
+
+| Key | Setting | Effect |
+|-----|---------|--------|
+| W/S | brightness_threshold | Higher = less sensitive |
+| E/D | min_threshold | Lower = detect dimmer spots |
+| R/F | min_area | Lower = detect smaller spots |
+| T/G | max_jump_distance | Higher = allow faster movement |
+| Y/H | required_frames | Lower = faster response |
+| Q | Save & Quit | Saves settings to config.yaml |
+| ESC | Quit | Exit without saving |
+| SPACE | Reset | Restore default values |
+
+**Calibration Tips:**
+- Wave your wand in front of the camera while adjusting settings
+- Green circle = valid tracking, Yellow circle = detecting but not yet confirmed
+- Lower `brightness_threshold` if wand tip not detected
+- Increase `required_frames` if getting false detections
+
 ---
 
 ## Troubleshooting

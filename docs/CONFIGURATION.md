@@ -422,6 +422,39 @@ detection:
     min_inertia_ratio: 0.3       # Minimum inertia ratio (0-1)
 ```
 
+### Reflector Wand Detection
+
+For Universal Studios interactive wands (reflector-based), use the `reflector` detection mode:
+
+```yaml
+detection:
+  wand_type: "reflector"         # Use "led" for IR LED wands (default)
+
+  reflector:
+    brightness_threshold: 180    # Minimum brightness for detection
+    blob_detector:
+      min_threshold: 80          # Blob detection threshold
+      min_area: 10               # Minimum blob size
+      max_area: 800              # Maximum blob size
+      min_circularity: 0.4       # Shape filter
+    kalman:
+      max_jump_distance: 100     # Maximum pixel jump between frames
+    temporal:
+      required_frames: 3         # Consecutive detections required
+```
+
+**Interactive Calibration:**
+
+Use the real-time calibrator to tune these settings while viewing camera output:
+
+```bash
+python3 calibrate_reflector.py
+# or
+make calibrate
+```
+
+The calibrator shows live detection results and lets you adjust parameters with keyboard controls. Press Q to save settings to config.yaml.
+
 #### Parameters
 
 | Parameter | Type | Range | Description |
