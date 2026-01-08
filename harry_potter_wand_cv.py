@@ -218,7 +218,11 @@ prediction_lock = Lock()  # Ensures only one prediction runs at a time
 
 
 def screen_flash_feedback(spell_type):
-    """Flash screen border when LEDs are disabled for visual feedback."""
+    """Flash screen border when LEDs are disabled for visual feedback.
+
+    WARNING: This function uses cv2.imshow/waitKey which are NOT thread-safe.
+    Only call from the main thread, never from threaded_predict or similar.
+    """
     if neo is not None:
         return  # LEDs handle the feedback
 
@@ -258,13 +262,11 @@ def threaded_predict(mask):
             print("Alohamora!!")
             play_spell_sound(ALOHA_SOUND, bg_volume)
             move_servo_smoothly(neo, servo, "open")
-            screen_flash_feedback("open")
             lastMove = 1
         elif prediction == "1" and lastMove == 1:
             print("Colloportus!!")
             play_spell_sound(COLLO_SOUND, bg_volume)
             move_servo_smoothly(neo, servo, "close")
-            screen_flash_feedback("close")
             lastMove = 0
     finally:
         with prediction_lock:
