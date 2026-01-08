@@ -121,6 +121,91 @@ def test_color_wipe(neo, r, g, b, name, delay=0.05):
     print(f"{Colors.GREEN}Done{Colors.NC}")
 
 
+def test_bounce_wipe(neo, r, g, b, name, delay=0.03):
+    """Wipe color back and forth"""
+    print(f"Bounce wipe: {name}...")
+    # Forward
+    for i in range(neo.num_leds):
+        neo.fill_strip(0, 0, 0)
+        neo.set_led_color(i, r, g, b)
+        if i > 0:
+            neo.set_led_color(i - 1, r // 3, g // 3, b // 3)
+        if i > 1:
+            neo.set_led_color(i - 2, r // 6, g // 6, b // 6)
+        neo.update_strip()
+        time.sleep(delay)
+    # Backward
+    for i in range(neo.num_leds - 1, -1, -1):
+        neo.fill_strip(0, 0, 0)
+        neo.set_led_color(i, r, g, b)
+        if i < neo.num_leds - 1:
+            neo.set_led_color(i + 1, r // 3, g // 3, b // 3)
+        if i < neo.num_leds - 2:
+            neo.set_led_color(i + 2, r // 6, g // 6, b // 6)
+        neo.update_strip()
+        time.sleep(delay)
+    neo.fill_strip(0, 0, 0)
+    neo.update_strip()
+    print(f"{Colors.GREEN}Done{Colors.NC}")
+
+
+def test_theater_chase(neo, r, g, b, name, cycles=10, delay=0.08):
+    """Theater chase animation"""
+    import random
+    print(f"Theater chase: {name}...")
+    for _ in range(cycles):
+        for offset in range(3):
+            neo.fill_strip(0, 0, 0)
+            for i in range(0, neo.num_leds, 3):
+                if i + offset < neo.num_leds:
+                    neo.set_led_color(i + offset, r, g, b)
+            neo.update_strip()
+            time.sleep(delay)
+    neo.fill_strip(0, 0, 0)
+    neo.update_strip()
+    print(f"{Colors.GREEN}Done{Colors.NC}")
+
+
+def test_sparkle(neo, r, g, b, name, duration=3):
+    """Random sparkle effect"""
+    import random
+    print(f"Sparkle: {name} ({duration}s)...")
+    start_time = time.time()
+
+    while time.time() - start_time < duration:
+        neo.fill_strip(0, 0, 0)
+        # Light up random LEDs
+        for _ in range(neo.num_leds // 5):
+            idx = random.randint(0, neo.num_leds - 1)
+            neo.set_led_color(idx, r, g, b)
+        neo.update_strip()
+        time.sleep(0.05)
+
+    neo.fill_strip(0, 0, 0)
+    neo.update_strip()
+    print(f"{Colors.GREEN}Done{Colors.NC}")
+
+
+def test_comet(neo, r, g, b, name, delay=0.02):
+    """Comet with fading tail"""
+    print(f"Comet: {name}...")
+    tail_length = 8
+
+    for i in range(neo.num_leds + tail_length):
+        neo.fill_strip(0, 0, 0)
+        for t in range(tail_length):
+            idx = i - t
+            if 0 <= idx < neo.num_leds:
+                fade = 1.0 - (t / tail_length)
+                neo.set_led_color(idx, int(r * fade), int(g * fade), int(b * fade))
+        neo.update_strip()
+        time.sleep(delay)
+
+    neo.fill_strip(0, 0, 0)
+    neo.update_strip()
+    print(f"{Colors.GREEN}Done{Colors.NC}")
+
+
 def test_rainbow(neo, duration=5):
     """Rainbow cycle animation"""
     import math
@@ -189,18 +274,24 @@ def show_menu():
     print(f"""
 {Colors.BOLD}LED Demo Options:{Colors.NC}
 
-  {Colors.BLUE}Basic Tests:{Colors.NC}
-    1. Red solid
-    2. Green solid
-    3. Blue solid
-    4. White solid
-    5. Color wipe (rainbow)
-    6. Rainbow cycle
-    7. Brightness test
+  {Colors.BLUE}Solid Colors:{Colors.NC}
+    1. Red            5. Pink
+    2. Green          6. Yellow
+    3. Blue           7. Purple
+    4. White          8. Cyan
 
-  {Colors.BLUE}Spell Animations:{Colors.NC}
-    8. Alohamora (open) - Purple fire
-    9. Colloportus (close) - Blue fire
+  {Colors.BLUE}Animations:{Colors.NC}
+    a. Color wipe (RGB)
+    b. Bounce wipe
+    c. Theater chase
+    d. Sparkle
+    e. Comet
+    f. Rainbow cycle
+    g. Brightness test
+
+  {Colors.BLUE}Spell Effects:{Colors.NC}
+    s. Alohamora (open) - Purple fire
+    t. Colloportus (close) - Blue fire
 
   {Colors.BLUE}Other:{Colors.NC}
     0. All off
@@ -232,6 +323,7 @@ def main():
             show_menu()
             choice = input(f"{Colors.BOLD}Select option: {Colors.NC}").strip().lower()
 
+            # Solid colors
             if choice == '1':
                 test_solid_color(neo, 255, 0, 0, "Red")
             elif choice == '2':
@@ -241,17 +333,41 @@ def main():
             elif choice == '4':
                 test_solid_color(neo, 255, 255, 255, "White")
             elif choice == '5':
+                test_solid_color(neo, 255, 105, 180, "Pink")
+            elif choice == '6':
+                test_solid_color(neo, 255, 255, 0, "Yellow")
+            elif choice == '7':
+                test_solid_color(neo, 148, 0, 211, "Purple")
+            elif choice == '8':
+                test_solid_color(neo, 0, 255, 255, "Cyan")
+
+            # Animations
+            elif choice == 'a':
                 test_color_wipe(neo, 255, 0, 0, "Red")
                 test_color_wipe(neo, 0, 255, 0, "Green")
                 test_color_wipe(neo, 0, 0, 255, "Blue")
-            elif choice == '6':
+            elif choice == 'b':
+                test_bounce_wipe(neo, 255, 105, 180, "Pink")
+                test_bounce_wipe(neo, 0, 255, 255, "Cyan")
+            elif choice == 'c':
+                test_theater_chase(neo, 255, 255, 0, "Yellow")
+            elif choice == 'd':
+                test_sparkle(neo, 255, 255, 255, "White")
+            elif choice == 'e':
+                test_comet(neo, 0, 150, 255, "Blue")
+                test_comet(neo, 255, 50, 150, "Pink")
+            elif choice == 'f':
                 test_rainbow(neo)
-            elif choice == '7':
+            elif choice == 'g':
                 test_brightness_levels(neo)
-            elif choice == '8':
+
+            # Spell effects
+            elif choice == 's':
                 test_spell_animation(neo, servo, "open")
-            elif choice == '9':
+            elif choice == 't':
                 test_spell_animation(neo, servo, "close")
+
+            # Other
             elif choice == '0':
                 neo.fill_strip(0, 0, 0)
                 neo.update_strip()
