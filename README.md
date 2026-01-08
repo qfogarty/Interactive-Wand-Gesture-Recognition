@@ -203,6 +203,40 @@ That's it! The new spell will be recognized. To add custom LED colors and sounds
 
 ---
 
+## Testing & Validation
+
+### Hardware Testing (on Raspberry Pi)
+
+```bash
+# Validate your setup (camera, SPI, audio, model)
+python3 test_setup.py
+
+# Interactive LED demo - test animations without casting spells
+python3 test_led_demo.py
+# or
+make led-demo
+```
+
+### Code Testing (Docker or local)
+
+```bash
+# Run all tests in Docker (recommended)
+make test-docker
+
+# Run all tests locally (requires PyYAML)
+make test-local
+
+# Individual test suites
+make test-syntax      # Python syntax validation
+make test-config      # Configuration validation
+make test-gpio        # GPIO pin configuration
+make test-mocks       # Hardware mock tests
+make test-animations  # Animation logic tests
+make test-docs        # Documentation validation
+```
+
+---
+
 ## Common Issues
 
 | Problem | Quick Fix |

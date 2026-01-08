@@ -750,6 +750,79 @@ See existing dataset in `DatasetCreation/` for reference gesture shapes.
 
 ---
 
+## Testing & Validation
+
+### Hardware Validation (Raspberry Pi)
+
+After setting up your hardware, run the validation suite:
+
+```bash
+# Full hardware validation
+python3 test_setup.py
+```
+
+This checks:
+- Python dependencies (numpy, opencv, pi5neo, etc.)
+- Camera availability
+- SPI device access
+- LED strip initialization
+- Audio system
+- ML model loading
+
+### LED Animation Demo
+
+Test LED animations without casting spells:
+
+```bash
+python3 test_led_demo.py
+# or
+make led-demo
+```
+
+Interactive menu options:
+- **Basic tests**: Solid colors, color wipe, rainbow, brightness levels
+- **Spell animations**: Alohamora (purple), Colloportus (blue)
+- Works with or without servo motor
+
+### Automated Test Suite
+
+Run the full test suite in Docker (no hardware required):
+
+```bash
+# Run all tests in Docker (recommended)
+make test-docker
+
+# Or run locally (requires PyYAML installed)
+make test-local
+```
+
+| Test Suite | What It Validates |
+|------------|-------------------|
+| `test-syntax` | Python file compilation |
+| `test-config` | Configuration structure and loading |
+| `test-gpio` | GPIO pin assignments and conflicts |
+| `test-mocks` | Hardware mock implementations |
+| `test-animations` | Animation logic with mocked hardware |
+| `test-docs` | Documentation completeness |
+
+### Quick Validation Commands
+
+```bash
+# Check config syntax
+python3 -c "import yaml; yaml.safe_load(open('config.yaml'))"
+
+# Check config loading
+python3 -c "from config_loader import get_config; print(get_config().project.name)"
+
+# Check SPI device
+ls -la /dev/spidev0.0
+
+# Check user groups
+groups $USER | grep -E "(spi|gpio|video)"
+```
+
+---
+
 ## Troubleshooting
 
 ### LED Strip Issues

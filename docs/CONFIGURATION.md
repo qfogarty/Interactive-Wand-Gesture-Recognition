@@ -678,9 +678,11 @@ python3 -c "import yaml; yaml.safe_load(open('config.yaml'))"
 ### Getting Help
 
 1. **Test your setup**: `python3 test_setup.py`
-2. **Check logs**: Error messages indicate which config values are problematic
-3. **Reset to defaults**: Run `python3 setup_wizard.py` to regenerate config
-4. **Verify hardware**: Ensure all connections match wiring diagrams
+2. **Test LED animations**: `python3 test_led_demo.py` (interactive demo)
+3. **Check logs**: Error messages indicate which config values are problematic
+4. **Reset to defaults**: Run `python3 setup_wizard.py` to regenerate config
+5. **Verify hardware**: Ensure all connections match wiring diagrams
+6. **Run Docker tests**: `make test-docker` (validates config, GPIO, animations)
 
 ---
 
