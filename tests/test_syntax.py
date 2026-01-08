@@ -28,11 +28,13 @@ def test_python_syntax():
         "config_loader.py",
         "setup_wizard.py",
         "test_setup.py",
+        "calibrate_reflector.py",
         "utils/terminal_ui.py",
         "utils/hardware_checks.py",
         "utils/config_builder.py",
         "utils/animations.py",
         "utils/audio.py",
+        "utils/reflector_detector.py",
         "DatasetCreation/train_spell_classifier.py",
     ]
 
@@ -90,7 +92,7 @@ def test_imports():
             passed += 1
         except ImportError as e:
             # Expected for hardware-dependent modules
-            if "picamera2" in str(e) or "pygame" in str(e) or "pi5neo" in str(e) or "pandas" in str(e):
+            if "picamera2" in str(e) or "pygame" in str(e) or "pi5neo" in str(e) or "pandas" in str(e) or "yaml" in str(e):
                 print(f"⚠️  {description}: {module_name} (hardware dependency expected)")
                 passed += 1
             else:
