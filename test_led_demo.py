@@ -28,19 +28,22 @@ def get_neo():
 
         config = get_config()
 
-        if not config.hardware.led.enabled:
+        # Get LED config with safe defaults
+        led_config = config.hardware.get('led', {})
+        enabled = led_config.get('enabled', False)
+        count = led_config.get('count', 30)
+        timing = led_config.get('timing', 800)
+        spi_device = led_config.get('spi_device', '/dev/spidev0.0')
+
+        if not enabled:
             print(f"{Colors.YELLOW}Warning: LEDs disabled in config.yaml{Colors.NC}")
             print(f"Set hardware.led.enabled: true to enable")
             response = input("Continue anyway? [y/N]: ").strip().lower()
             if response != 'y':
                 return None
 
-        neo = Pi5Neo(
-            config.hardware.led.spi_device,
-            config.hardware.led.count,
-            config.hardware.led.timing
-        )
-        print(f"{Colors.GREEN}LED strip initialized ({config.hardware.led.count} LEDs){Colors.NC}")
+        neo = Pi5Neo(spi_device, count, timing)
+        print(f"{Colors.GREEN}LED strip initialized ({count} LEDs){Colors.NC}")
         return neo
 
     except ImportError:
@@ -63,20 +66,28 @@ def get_servo():
         from config_loader import get_config
         config = get_config()
 
-        if not config.hardware.servo.enabled:
+        # Get servo config with safe defaults
+        servo_config = config.hardware.get('servo', {})
+        enabled = servo_config.get('enabled', False)
+
+        if not enabled:
             return None
+
+        gpio_pin = servo_config.get('gpio_pin', 12)
+        min_pulse = servo_config.get('min_pulse_width', 0.0005)
+        max_pulse = servo_config.get('max_pulse_width', 0.0025)
 
         from gpiozero import Servo
         from gpiozero.pins.pigpio import PiGPIOFactory
 
         factory = PiGPIOFactory()
         servo = Servo(
-            config.hardware.servo.gpio_pin,
-            min_pulse_width=config.hardware.servo.min_pulse_width,
-            max_pulse_width=config.hardware.servo.max_pulse_width,
+            gpio_pin,
+            min_pulse_width=min_pulse,
+            max_pulse_width=max_pulse,
             pin_factory=factory
         )
-        print(f"{Colors.GREEN}Servo initialized (GPIO {config.hardware.servo.gpio_pin}){Colors.NC}")
+        print(f"{Colors.GREEN}Servo initialized (GPIO {gpio_pin}){Colors.NC}")
         return servo
 
     except Exception as e:
