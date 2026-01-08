@@ -1,4 +1,4 @@
-.PHONY: help test test-docker test-local test-syntax test-config test-utils test-docs test-gpio test-mocks test-animations build-test clean led-demo
+.PHONY: help test test-docker test-local test-syntax test-config test-utils test-docs test-gpio test-mocks test-animations build-test clean led-demo calibrate
 
 help:
 	@echo "Interactive Wand - Testing Commands"
@@ -15,6 +15,7 @@ help:
 	@echo ""
 	@echo "Hardware Testing (Raspberry Pi only):"
 	@echo "  make led-demo         Interactive LED animation demo"
+	@echo "  make calibrate        Calibrate reflector wand detection"
 	@echo ""
 	@echo "Docker Testing:"
 	@echo "  make test-docker      Run all tests in Docker"
@@ -101,6 +102,10 @@ test: test-local
 led-demo:
 	@echo "Starting LED animation demo..."
 	@python3 test_led_demo.py
+
+calibrate:
+	@echo "Starting reflector wand calibrator..."
+	@python3 calibrate_reflector.py
 
 # Cleanup
 clean:
