@@ -432,13 +432,25 @@ detection:
 
   reflector:
     brightness_threshold: 180    # Minimum brightness for detection
+
+    # MOG2 background subtraction - isolates moving reflections
+    mog2:
+      history: 120               # Frames of history (~2 sec at 60fps)
+      var_threshold: 25          # Motion sensitivity (lower = more sensitive)
+
+    # Blob detector settings
     blob_detector:
       min_threshold: 80          # Blob detection threshold
       min_area: 10               # Minimum blob size
       max_area: 800              # Maximum blob size
-      min_circularity: 0.4       # Shape filter
+      min_circularity: 0.4       # Shape filter (0-1, 1=circle)
+      min_inertia_ratio: 0.2     # Elongation filter (0-1)
+
+    # Tracking settings
     kalman:
       max_jump_distance: 100     # Maximum pixel jump between frames
+
+    # Temporal validation
     temporal:
       required_frames: 3         # Consecutive detections required
 ```
@@ -455,28 +467,98 @@ make calibrate
 
 The calibrator shows live detection results and lets you adjust parameters with keyboard controls. Press Q to save settings to config.yaml.
 
+#### Keyboard Controls
+
+| Key | Parameter | Step | Range |
+|-----|-----------|------|-------|
+| W/S | brightness_threshold | ±10×mult | 50-255 |
+| E/D | min_threshold | ±10×mult | 20-200 |
+| R/F | min_area | ±5×mult | 3-200 |
+| U/J | max_area | ±50×mult | 100-2000 |
+| I/K | min_circularity | ±0.05×mult | 0.1-1.0 |
+| N/B | min_inertia_ratio | ±0.05×mult | 0.05-1.0 |
+| O/L | mog2_history | ±30×mult | 30-500 |
+| ,/. | mog2_var_threshold | ±5×mult | 5-100 |
+| T/G | max_jump_distance | ±10×mult | 20-500 |
+| Y/H | required_frames | ±1 | 1-15 |
+
+**Step Size Modes (multiplier):**
+| Key | Mode | Multiplier |
+|-----|------|------------|
+| 1 | Fine | 1x |
+| 2 | Normal | 2x (default) |
+| 3 | Coarse | 5x |
+
+**View & Debug:**
+| Key | Action |
+|-----|--------|
+| V | Cycle debug views (Combined → FG Mask → Bright Mask → Grayscale) |
+| M | Toggle mask overlay on main camera view |
+
+**Actions:**
+| Key | Action |
+|-----|--------|
+| A | Auto-calibrate brightness (wave wand during 2-second sampling) |
+| SPACE | Reset all parameters to defaults |
+| P | Print current settings to console |
+| Q | Save settings to config.yaml and quit |
+| ESC | Quit without saving |
+
 #### Parameters
 
 | Parameter | Type | Range | Description |
 |-----------|------|-------|-------------|
-| `min_threshold` | int | 0-255 | Minimum pixel brightness to consider (higher = only bright spots) |
-| `max_threshold` | int | 0-255 | Maximum brightness threshold (usually 255) |
-| `min_area` | int | 1-1000 | Minimum blob size in pixels (filters noise) |
-| `max_area` | int | 1-10000 | Maximum blob size (prevents detecting large bright areas) |
-| `min_circularity` | float | 0-1 | How circular blob must be (1.0 = perfect circle) |
-| `min_inertia_ratio` | float | 0-1 | Shape elongation (lower allows more elongated shapes) |
+| `brightness_threshold` | int | 50-255 | Minimum pixel brightness for detection |
+| `min_threshold` | int | 20-200 | Blob detector threshold (lower = more sensitive) |
+| `min_area` | int | 3-200 | Minimum blob size in pixels (filters noise) |
+| `max_area` | int | 100-2000 | Maximum blob size (prevents detecting large bright areas) |
+| `min_circularity` | float | 0.1-1.0 | How circular blob must be (1.0 = perfect circle) |
+| `min_inertia_ratio` | float | 0.05-1.0 | Shape elongation (lower allows more elongated shapes) |
+| `mog2_history` | int | 30-500 | Background subtractor history frames (~2sec at 60fps) |
+| `mog2_var_threshold` | int | 5-100 | Motion sensitivity (lower = more sensitive) |
+| `max_jump_distance` | int | 20-500 | Maximum pixel jump between frames (outlier rejection) |
+| `required_frames` | int | 1-15 | Consecutive detections needed for valid tracking |
+
+#### Debug Views
+
+The calibrator provides multiple debug views to help diagnose detection issues:
+
+1. **Combined** - Final detection mask (moving AND bright pixels)
+2. **FG Mask (MOG2)** - Background subtraction output (what's moving)
+3. **Bright Mask** - Brightness threshold output (what's bright enough)
+4. **Grayscale** - Raw camera input in grayscale
+
+Press **V** to cycle through views. The debug window title shows the current view.
+
+#### On-Screen Information
+
+The calibrator displays real-time information:
+- **Status**: TRACKING (green), DETECTING (yellow), NO DETECTION (red)
+- **FPS**: Current frame rate
+- **Noise %**: Detection mask noise level (red if >2%)
+- **Suggested**: Auto-calculated brightness threshold based on scene
+- **Detections**: Consecutive detection count vs required frames
 
 #### Tuning Guide
 
 **Wand tip not detected:**
-- **Lower** `min_threshold` (try 150-170)
-- **Lower** `min_area` (try 10)
-- **Lower** `min_circularity` (try 0.6)
+- **Lower** `brightness_threshold` (try 150-170)
+- **Lower** `min_threshold` (try 60-70)
+- **Lower** `min_area` (try 5-10)
+- **Lower** `min_circularity` (try 0.3)
+- Press **A** for auto-calibration
 
 **Too many false detections:**
-- **Raise** `min_threshold` (try 190-200)
-- **Raise** `min_area` (try 20-30)
-- **Raise** `min_circularity` (try 0.8)
+- **Raise** `brightness_threshold` (try 190-210)
+- **Raise** `min_threshold` (try 100-120)
+- **Raise** `min_area` (try 15-25)
+- **Raise** `min_circularity` (try 0.5-0.6)
+- Check **Noise %** - should be <0.5% when no wand present
+
+**Tracking jumpy or unstable:**
+- **Lower** `max_jump_distance` (try 50-80)
+- **Increase** `required_frames` (try 4-5)
+- **Adjust** MOG2 settings for better motion isolation
 
 **Testing blob detection:**
 ```bash
