@@ -2,12 +2,143 @@
 ## Supplementary Document for Hardware Assembly
 
 **Project:** Interactive Wand Gesture Recognition
-**Component:** 850nm DC12V 42-LED IR Board Control Circuits
+**Component:** 850nm IR Illuminator Boards (5V and 12V Options)
 **Date:** 2025-11-22
+**Updated:** 2026-01-09
 
 ---
 
-## Diagram 1: Basic MOSFET Control Circuit
+## IR Illuminator Options Summary
+
+| Option | Voltage | Complexity | Best For |
+|--------|---------|------------|----------|
+| **Option A: 5V IR Board** | DC 5V | Simple | Beginners, 1-2m range |
+| **Option B: 12V IR Board** | DC 12V | Moderate | Larger spaces, 2-5m range |
+
+---
+
+## Option A: 5V IR Board (Simple Setup)
+
+### Recommended Board
+- **Specs:** 850nm, DC 5V, 90° beam angle
+- **Example:** CCTV IR illuminator boards (commonly available on AliExpress)
+- **Effective range:** 1-2 meters
+
+### Diagram A1: Always-On 5V IR (Simplest)
+
+```
+Raspberry Pi 5                          5V IR LED Board
+┌────────────────────┐                  ┌──────────────────┐
+│                    │                  │   ●  ●  ●  ●     │
+│  5V Power (Pin 2) ─┼──────────────────┤── IR+ (Red)      │
+│         or Pin 4   │                  │                  │
+│                    │                  │   850nm LEDs     │
+│  GND (Pin 6, 9,   ─┼──────────────────┤── IR- (Black)    │
+│   14, 20, 25, 30)  │                  │                  │
+│                    │                  └──────────────────┘
+└────────────────────┘
+
+Connections:
+1. Pi 5V (Pin 2 or 4) → IR Board + (Red wire)
+2. Pi GND (any GND pin) → IR Board - (Black wire)
+
+Notes:
+- No external power supply needed
+- IR LEDs always on when Pi is powered
+- Simple 2-wire connection
+- Best for reflector wand tracking at close range
+```
+
+### Diagram A2: GPIO-Controlled 5V IR (On/Off Switching)
+
+```
+Raspberry Pi 5                          5V IR LED Board
+┌────────────────────┐                  ┌──────────────────┐
+│                    │                  │   ●  ●  ●  ●     │
+│  5V Power (Pin 2) ─┼──────────────────┤── IR+ (Red)      │
+│                    │                  │                  │
+│  GPIO 18 (Pin 12) ─┼──[1kΩ]──┐        │   850nm LEDs     │
+│                    │         │        │                  │
+│  GND (Pin 6) ──────┼────┬────┘        │                  │
+│                    │    │             └────────┬─────────┘
+└────────────────────┘    │                      │
+                          │                      │ IR- (Black)
+                    ┌─────▼─────┐                │
+                    │    NPN    │                │
+                    │ Transistor│◄───────────────┘
+                    │ (2N2222)  │
+                    └─────┬─────┘
+                          │
+                         GND
+
+Component Details:
+- Q1: NPN transistor (2N2222A, BC547, or similar)
+- R1: 1kΩ resistor (current limiting for base)
+
+Connections:
+1. Pi 5V (Pin 2) → IR Board + (Red)
+2. Pi GPIO18 (Pin 12) → 1kΩ resistor → Transistor Base
+3. IR Board - (Black) → Transistor Collector
+4. Transistor Emitter → GND
+5. Pi GND → Transistor Emitter (common ground)
+
+Python Control:
+  import RPi.GPIO as GPIO
+  GPIO.setmode(GPIO.BCM)
+  GPIO.setup(18, GPIO.OUT)
+  GPIO.output(18, GPIO.HIGH)  # IR ON
+  GPIO.output(18, GPIO.LOW)   # IR OFF
+```
+
+### Diagram A3: Raspberry Pi 5 GPIO Pinout (5V IR Relevant Pins)
+
+```
+Raspberry Pi 5 GPIO Header (40-pin)
+Relevant pins for 5V IR illuminator
+
+     3.3V  [ 1] [ 2]  5V      ← Use for IR+ (up to ~300mA)
+           [ 3] [ 4]  5V      ← Alternate 5V
+           [ 5] [ 6]  GND     ← Use for IR-
+           [ 7] [ 8]
+       GND [ 9] [10]
+           [11] [12]  GPIO18  ← Use for switching control
+           [13] [14]  GND
+           [15] [16]
+           [17] [18]
+           [19] [20]  GND
+           ...
+
+Power Budget Note:
+- Pi 5 can supply ~1A total from 5V pins (with proper PSU)
+- Typical 5V IR board draws 100-300mA
+- Safe for direct connection if using official 27W PSU
+```
+
+### 5V IR Board Configuration
+
+```yaml
+# config.yaml for 5V IR board
+
+hardware:
+  ir_illuminator:
+    enabled: true      # Set to true for GPIO control
+    gpio_pin: 18       # GPIO18 (Pin 12)
+    voltage: 5         # 5V board indicator
+
+  camera:
+    exposure_time: 10000   # May need slightly higher for 5V boards
+    analogue_gain: 6.0     # Adjust based on IR brightness
+```
+
+---
+
+## Option B: 12V IR Board (Higher Power)
+
+For larger spaces requiring more IR illumination power.
+
+---
+
+## Diagram 1: Basic MOSFET Control Circuit (12V)
 
 ```
 Raspberry Pi 5                              12V Power Supply

@@ -1,9 +1,21 @@
 # IR Illuminator Integration Research Report
 ## Project Reference Plan (PRP) Document
 **Project:** Interactive Wand Gesture Recognition
-**Component:** 850nm DC12V 42-LED IR Board with NoIR Camera
+**Component:** 850nm IR Illuminator Boards (5V and 12V Options) with NoIR Camera
 **Date:** 2025-11-22
+**Updated:** 2026-01-09
 **Status:** Research Phase
+
+---
+
+## Quick Reference: IR Board Options
+
+| Option | Voltage | Power | Range | Complexity | Best For |
+|--------|---------|-------|-------|------------|----------|
+| **5V CCTV Board** | DC 5V | ~1-2W | 1-2m | Simple | Beginners, reflector wands |
+| **12V 42-LED Board** | DC 12V | 3-4W | 2-5m | Moderate | Larger spaces, PWM control |
+
+**New to the project?** Start with the 5V option - it powers directly from the Raspberry Pi with no external PSU required.
 
 ---
 
@@ -21,7 +33,115 @@ This document provides comprehensive research and implementation guidance for in
 
 ---
 
-## 1. Hardware Setup
+## 0. Alternative: 5V IR Board (Simplified Setup)
+
+> **Added 2026-01-09:** For users wanting a simpler setup, 5V IR CCTV boards offer an easier alternative to the 12V boards documented in the rest of this guide.
+
+### 0.1 5V IR Board Specifications
+
+**Typical Product:**
+- Wavelength: 850nm
+- Voltage: DC 5V (can run directly from Raspberry Pi)
+- Beam angle: 90-100 degrees
+- LED count: Varies (typically 4-12 LEDs)
+- Power consumption: ~100-300mA (~0.5-1.5W)
+- Effective range: 1-2 meters
+
+**Example Products:**
+- CCTV IR illuminator boards on AliExpress
+- Security camera replacement IR boards
+- Look for: "850nm DC5V IR LED Board" or "5V Infrared Illuminator"
+
+### 0.2 Advantages of 5V Setup
+
+| Advantage | Details |
+|-----------|---------|
+| **No external PSU** | Powers directly from Pi 5V pins |
+| **Simple wiring** | Just 2 wires (5V and GND) |
+| **No MOSFET needed** | For always-on operation |
+| **Lower cost** | No extra power supply to buy |
+| **Safer** | 5V is inherently safer than 12V |
+| **Portable** | Single power source for whole system |
+
+### 0.3 5V IR Board Wiring
+
+**Always-On Setup (Simplest):**
+```
+Raspberry Pi 5                    5V IR Board
+┌─────────────────┐               ┌───────────────┐
+│                 │               │   ● ● ● ●     │
+│  Pin 2 (5V) ────┼───────────────┤── + (Red)     │
+│                 │               │   850nm       │
+│  Pin 6 (GND) ───┼───────────────┤── - (Black)   │
+│                 │               │               │
+└─────────────────┘               └───────────────┘
+
+Total: 2 wires. That's it!
+```
+
+**GPIO-Controlled Setup:**
+```
+Pi 5V (Pin 2)      → IR Board + (Red)
+Pi GPIO18 (Pin 12) → 1kΩ resistor → NPN transistor base
+IR Board - (Black) → NPN transistor collector
+Transistor emitter → GND
+Pi GND (Pin 6)     → GND rail
+
+Components: NPN transistor (2N2222A, BC547), 1kΩ resistor
+```
+
+### 0.4 5V vs 12V Comparison
+
+| Feature | 5V Board | 12V Board |
+|---------|----------|-----------|
+| **Power source** | Pi 5V pins | External 12V PSU |
+| **Wiring complexity** | 2 wires | 5+ wires + MOSFET |
+| **Effective range** | 1-2m | 2-5m |
+| **Brightness control** | On/Off only* | PWM dimming |
+| **Cost** | Lower | Higher (PSU + board) |
+| **Best for** | Reflector wands, close range | IR LED wands, large spaces |
+
+*PWM possible with additional circuitry but less practical at 5V
+
+### 0.5 When to Choose 5V
+
+Choose **5V IR board** if:
+- You're using reflector wands (Universal Studios style)
+- Your tracking distance is 1-2 meters
+- You want the simplest possible setup
+- You don't need brightness control
+- Budget is a concern
+
+Choose **12V IR board** if:
+- You need longer range (3+ meters)
+- You want PWM brightness control
+- You're tracking IR LED wands (not reflectors)
+- You're building a permanent installation
+
+### 0.6 Camera Settings for 5V IR
+
+5V boards are dimmer than 12V, so camera settings may need adjustment:
+
+```yaml
+# config.yaml
+hardware:
+  camera:
+    exposure_time: 10000    # Slightly higher than 12V setup
+    analogue_gain: 6.0      # May need to increase to 8.0
+    brightness: -0.2        # Adjust as needed
+
+  ir_illuminator:
+    enabled: false          # If always-on (no GPIO control)
+    # OR
+    enabled: true           # If using GPIO control
+    gpio_pin: 18
+```
+
+**Note:** The rest of this document focuses on the 12V 42-LED board setup. For 5V boards, the sections on **Camera Settings** (Section 4.2) and **SimpleBlobDetector Tuning** (Section 4.3) still apply.
+
+---
+
+## 1. Hardware Setup (12V Board)
 
 ### 1.1 Power Requirements
 

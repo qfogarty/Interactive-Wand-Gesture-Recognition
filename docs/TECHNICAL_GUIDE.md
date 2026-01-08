@@ -436,7 +436,13 @@ Optional:
 
 **SAFETY:** 850nm IR LEDs are eye-safe at >1 meter distance. Avoid staring directly at LEDs from close range.
 
-Choose between two IR illuminator options based on your needs:
+Choose from three IR illuminator options based on your needs:
+
+| Option | Voltage | Complexity | Range | Best For |
+|--------|---------|------------|-------|----------|
+| **A: Camera-Mounted Ring** | 5V (from camera) | Simplest | 1-3m | Beginners, compact setup |
+| **B: External 12V Board** | 12V | Moderate | 2-5m | Larger spaces, PWM control |
+| **C: External 5V Board** | 5V (from Pi) | Simple | 1-2m | Budget-friendly, no extra PSU |
 
 ---
 
@@ -535,6 +541,80 @@ ir_led.value = 0.5  # 50% brightness
 - Mount IR illuminator near camera (co-axial or ring mount ideal)
 - Distance from tracking area: 1-5 meters optimal
 - Test with camera view to ensure even illumination
+
+---
+
+#### **Option C: External 5V IR Board (Budget-Friendly)**
+
+**Best for:** 1-2m tracking distance, no extra power supply needed, simple wiring
+
+**Hardware:** 850nm DC 5V IR board (90° beam angle, commonly available on AliExpress as CCTV illuminators)
+
+**Advantages:**
+- Powers directly from Raspberry Pi 5V pins
+- No external 12V power supply required
+- No MOSFET circuit needed for simple always-on setup
+- Budget-friendly option
+
+**Simple Setup (Always-On):**
+```
+Pi 5V (Pin 2 or 4)  → IR Board + (Red wire)
+Pi GND (Pin 6)      → IR Board - (Black wire)
+```
+
+That's it! The IR board will turn on whenever the Pi is powered.
+
+**Advanced Setup (GPIO On/Off Control):**
+```
+Pi 5V (Pin 2)       → IR Board + (Red)
+Pi GPIO18 (Pin 12)  → 1kΩ resistor → NPN Transistor Base
+IR Board - (Black)  → Transistor Collector
+Transistor Emitter  → GND
+Pi GND              → Transistor Emitter
+```
+
+**Components for GPIO control:**
+- NPN transistor (2N2222A, BC547, or similar)
+- 1kΩ resistor
+
+**Configuration:**
+```yaml
+# config.yaml for 5V IR board
+
+# Option 1: Always-on (no GPIO control needed)
+hardware:
+  ir_illuminator:
+    enabled: false  # Not controlled by GPIO
+
+# Option 2: GPIO-controlled
+hardware:
+  ir_illuminator:
+    enabled: true
+    gpio_pin: 18
+
+  camera:
+    exposure_time: 10000   # Slightly higher for 5V boards
+    analogue_gain: 6.0
+```
+
+**Python Control (if using GPIO):**
+```python
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(18, GPIO.OUT)
+
+# Turn IR on
+GPIO.output(18, GPIO.HIGH)
+
+# Turn IR off
+GPIO.output(18, GPIO.LOW)
+```
+
+**Limitations:**
+- Less powerful than 12V option (shorter effective range)
+- No PWM brightness control without additional circuitry
+- Best for close-range reflector wand tracking (1-2m)
 
 ---
 
