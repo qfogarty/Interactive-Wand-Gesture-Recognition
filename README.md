@@ -23,9 +23,60 @@ This project uses a Raspberry Pi 5, camera, and machine learning to recognize wa
 
 For detailed hardware specs and where to buy, see the [Technical Guide](docs/TECHNICAL_GUIDE.md#hardware-requirements).
 
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph Hardware
+        WAND[Wand<br/>IR LED/Reflector]
+        CAM[Pi Camera<br/>NoIR Module]
+        LED[WS2812B<br/>LED Strip]
+        IR[IR Illuminator]
+        SERVO[Servo Motor]
+    end
+
+    subgraph "Raspberry Pi 5"
+        CV[OpenCV<br/>Blob Detection]
+        ML[scikit-learn<br/>SVM Classifier]
+        ANIM[Animation<br/>Controller]
+        AUDIO[Audio<br/>Player]
+    end
+
+    WAND -.->|IR Light| CAM
+    IR -.->|Illuminates| WAND
+    CAM --> CV
+    CV --> ML
+    ML --> ANIM
+    ML --> AUDIO
+    ANIM --> LED
+    ANIM --> SERVO
+
+    style CAM fill:#4a90e2,color:#fff
+    style ML fill:#f5a623,color:#fff
+    style LED fill:#50c878,color:#fff
+```
+
 ---
 
 ## Quick Setup
+
+### Installation Flow
+
+```mermaid
+flowchart TD
+    CLONE[1. Clone Repository] --> INSTALL[2. Run install.sh]
+    INSTALL --> WIZARD[3. Run setup_wizard.py]
+    WIZARD --> TRAIN[4. Train Spells]
+    TRAIN --> RUN[5. Cast Spells!]
+
+    INSTALL --> |Installs| DEPS[Dependencies<br/>OpenCV, NumPy<br/>scikit-learn]
+    WIZARD --> |Creates| CONFIG[config.yaml<br/>Hardware Settings]
+    TRAIN --> |Creates| MODEL[ML Model<br/>classifier.pkl]
+
+    style CLONE fill:#4a90e2,color:#fff
+    style RUN fill:#50c878,color:#fff
+    style CONFIG fill:#f5a623,color:#fff
+```
 
 ### 1. Clone the repository
 ```bash
@@ -73,6 +124,25 @@ Press **q** to quit.
 2. As you draw a gesture, it traces your movement
 3. When you hold still, an ML model recognizes the spell
 4. LEDs flash, sounds play, and magic happens!
+
+### Detection Pipeline
+
+```mermaid
+flowchart LR
+    CAM[Camera<br/>IR NoIR] --> BLOB[Blob<br/>Detection]
+    BLOB --> TRACK[Position<br/>Tracking]
+    TRACK --> TRACE[Gesture<br/>Tracing]
+    TRACE --> STILL{Wand<br/>Still?}
+    STILL -->|No| TRACK
+    STILL -->|Yes| ML[ML<br/>Classifier]
+    ML --> SPELL[Spell<br/>Identified]
+    SPELL --> LED[LED<br/>Animation]
+    SPELL --> SOUND[Sound<br/>Effect]
+
+    style CAM fill:#4a90e2,color:#fff
+    style ML fill:#f5a623,color:#fff
+    style SPELL fill:#50c878,color:#fff
+```
 
 **Default spells:**
 - **Alohamora** (unlock) - Purple LED animation
