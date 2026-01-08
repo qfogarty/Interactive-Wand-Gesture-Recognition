@@ -49,6 +49,44 @@ services:
     environment:
       - PYTHONPATH=/app
 
+  # GPIO configuration validation
+  test-gpio:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-gpio
+    command: python3 tests/test_gpio_config.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+
+  # Hardware mock unit tests
+  test-mocks:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-mocks
+    command: python3 tests/test_hardware_mocks.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - TEST_MODE=docker
+
+  # Animation logic tests with mocks
+  test-animations:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wand-test-animations
+    command: python3 tests/test_animations_mocked.py
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - TEST_MODE=docker
+
   # All tests combined
   test-all:
     build:

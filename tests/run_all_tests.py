@@ -58,6 +58,9 @@ def main():
         ("Configuration Validation", tests_dir / "test_config.py"),
         ("Utils Module Testing", tests_dir / "test_utils.py"),
         ("Documentation Validation", tests_dir / "test_documentation.py"),
+        ("GPIO Configuration", tests_dir / "test_gpio_config.py"),
+        ("Hardware Mocks", tests_dir / "test_hardware_mocks.py"),
+        ("Animation Logic (Mocked)", tests_dir / "test_animations_mocked.py"),
     ]
 
     results = {}
