@@ -42,7 +42,7 @@ def _build_detection_config(hw_config: dict, detect_config: dict) -> dict:
                 'min_circularity': 0.4,
                 'min_inertia_ratio': 0.2
             },
-            'brightness_threshold': 120,
+            'brightness_threshold': 180,
             'kalman': {
                 'process_noise': 0.03,
                 'measurement_noise': 0.5,

@@ -43,6 +43,35 @@ A personal passion project recreating the magic of spellcasting through computer
   - **External Board**: More powerful illumination for larger spaces (5-10m), requires 12V PSU and optional MOSFET for brightness control
 - **Wand Construction**: Any IR LED (850nm) attached to stick/wand with power works as tracking point
 
+### Raspberry Pi 5 Compatibility
+
+> **Important:** This project is designed specifically for **Raspberry Pi 5** and uses the SPI-based `pi5neo` library for LED control.
+
+#### Why SPI Instead of PWM?
+
+Traditional WS2812B LED control methods (like `rpi_ws281x` or `adafruit-neopixel`) use GPIO18 with PWM/DMA. **These methods do NOT work on Raspberry Pi 5** due to the new RP1 southbridge chip that handles GPIO differently.
+
+This project uses the **SPI method** instead:
+- LED data is sent via SPI0 (Pin 19 / GPIO10 / MOSI)
+- Controlled through `/dev/spidev0.0`
+- Uses the `pi5neo` library (installed automatically)
+
+#### Requirements for Pi 5
+
+| Requirement | How It's Met |
+|-------------|--------------|
+| SPI enabled | `install.sh` adds `dtparam=spi=on` to config |
+| `pi5neo` library | `install.sh` runs `pip3 install pi5neo` |
+| User in `spi` group | `install.sh` runs `usermod -a -G spi` |
+| LED on Pin 19 | Connect LED DIN to Physical Pin 19 (GPIO10/MOSI) |
+
+#### Raspberry Pi 4 and Earlier
+
+This project is **not directly compatible** with Raspberry Pi 4 or earlier models. If you need Pi 4 support:
+- Use `rpi_ws281x` library instead of `pi5neo`
+- Connect LED to GPIO18 (Pin 12) instead of GPIO10 (Pin 19)
+- Modify `harry_potter_wand_cv.py` to use the different library
+
 ---
 
 ## System Architecture

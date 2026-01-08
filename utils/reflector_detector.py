@@ -57,7 +57,7 @@ class ReflectorDetector:
                 'min_circularity': 0.4,
                 'min_inertia_ratio': 0.2
             },
-            'brightness_threshold': 120,  # Minimum brightness to consider as reflector
+            'brightness_threshold': 180,  # Minimum brightness to consider as reflector
             'kalman': {
                 'process_noise': 0.03,
                 'measurement_noise': 0.5,

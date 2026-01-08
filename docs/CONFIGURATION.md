@@ -5,6 +5,7 @@ Complete guide to configuring the Interactive Wand project through `config.yaml`
 ## Table of Contents
 
 - [Overview](#overview)
+- [GPIO Pin Reference](#gpio-pin-reference)
 - [Configuration File Structure](#configuration-file-structure)
 - [Hardware Configuration](#hardware-configuration)
   - [LED Strip](#led-strip)
@@ -45,6 +46,65 @@ The Interactive Wand project uses a centralized YAML configuration file (`config
    - Copy/edit `config.yaml` directly
    - All paths are relative to project root
    - Restart Python scripts to apply changes
+
+---
+
+## GPIO Pin Reference
+
+Quick reference for all GPIO pins used by this project. **This is essential for wiring your hardware correctly.**
+
+### Pin Summary Table
+
+| Function | Physical Pin | GPIO (BCM) | Interface | Config Key |
+|----------|-------------|------------|-----------|------------|
+| **LED Strip Data** | **19** | GPIO10 | SPI0 MOSI | `hardware.led.spi_device` |
+| Servo Motor | 32 | GPIO12 | Hardware PWM | `hardware.servo.gpio_pin` |
+| IR Illuminator | 12 | GPIO18 | Software PWM | `hardware.ir_illuminator.gpio_pin` |
+
+### Important Notes
+
+1. **LED Strip uses SPI, not GPIO PWM**
+   - The LED strip connects to Physical Pin 19 (GPIO10/MOSI)
+   - This is the SPI data line, controlled via `/dev/spidev0.0`
+   - The `gpio_pin: 19` in config is for documentation only
+   - **Traditional GPIO18 PWM methods do NOT work on Raspberry Pi 5**
+
+2. **BCM vs Physical Pin Numbers**
+   - Config files use **GPIO BCM numbers** (e.g., `gpio_pin: 12` = GPIO12)
+   - Wiring diagrams often show **Physical Pin numbers** (e.g., Pin 32)
+   - The table above shows both for clarity
+
+3. **Ground Connections**
+   - All devices share common ground with the Pi
+   - Use any GND pin: 6, 9, 14, 20, 25, 30, 34, or 39
+   - **Critical:** External power supplies MUST share ground with Pi
+
+### Visual Pin Layout
+
+```
+        Raspberry Pi 5 GPIO Header (40-pin)
+
+              3.3V [1]  [2]  5V
+    (I2C SDA) GPIO2 [3]  [4]  5V
+    (I2C SCL) GPIO3 [5]  [6]  GND ← Common Ground
+              GPIO4 [7]  [8]  GPIO14 (UART TX)
+               GND  [9]  [10] GPIO15 (UART RX)
+             GPIO17 [11] [12] GPIO18 ← IR Illuminator PWM
+             GPIO27 [13] [14] GND
+             GPIO22 [15] [16] GPIO23
+              3.3V  [17] [18] GPIO24
+  (SPI MOSI) GPIO10 [19] [20] GND        ← LED Strip Data (Pin 19)
+  (SPI MISO) GPIO9  [21] [22] GPIO25
+  (SPI SCLK) GPIO11 [23] [24] GPIO8 (SPI CE0)
+               GND  [25] [26] GPIO7 (SPI CE1)
+              GPIO0 [27] [28] GPIO1
+              GPIO5 [29] [30] GND
+              GPIO6 [31] [32] GPIO12 ← Servo PWM
+             GPIO13 [33] [34] GND
+             GPIO19 [35] [36] GPIO16
+             GPIO26 [37] [38] GPIO20
+               GND  [39] [40] GPIO21
+```
 
 ---
 
@@ -158,29 +218,48 @@ graph TD
 
 Configure WS2812B addressable RGB LED strip parameters.
 
+> **Important:** This project uses the SPI method for LED control, which is required for Raspberry Pi 5.
+> Connect your LED strip's DIN (data input) to **Physical Pin 19** (GPIO10/MOSI).
+> See the [GPIO Pin Reference](#gpio-pin-reference) section for the complete pin layout.
+
 ```yaml
 hardware:
   led:
+    enabled: false               # Set to true when LED strip is connected
     count: 30                    # Number of LEDs in your strip
     timing: 800                  # 800 for WS2812B, 400 for older WS2811
-    spi_device: "/dev/spidev0.0" # SPI device (Pi 5 uses SPI0)
-    gpio_pin: 19                 # GPIO10/MOSI for Pi 5 (Pin 19)
+    spi_device: "/dev/spidev0.0" # SPI device path (Pi 5 uses SPI0)
+    gpio_pin: 19                 # Physical Pin 19 = GPIO10/MOSI (for reference)
 ```
 
 #### Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `enabled` | bool | false | Enable LED strip (set to true when wired) |
 | `count` | int | 30 | Total number of LEDs in strip (1-300) |
 | `timing` | int | 800 | LED timing in kHz (800 for WS2812B) |
 | `spi_device` | string | "/dev/spidev0.0" | SPI device path (don't change unless using SPI1) |
-| `gpio_pin` | int | 19 | GPIO pin number (documentation only - uses MOSI) |
+| `gpio_pin` | int | 19 | Physical pin number (documentation only - actual control via SPI MOSI) |
+
+#### Wiring
+
+```
+LED Strip DIN  →  Physical Pin 19 (GPIO10/MOSI)
+LED Strip GND  →  Pi GND (Pin 6) + External PSU GND (common ground!)
+LED Strip 5V   →  External 5V PSU (NOT from Pi 5V pins for >10 LEDs)
+```
 
 #### Common Issues
 
-- **LEDs don't light up**: Check `count` matches your strip length
-- **Wrong colors**: Verify `timing` is 800 for WS2812B
+- **LEDs don't light up**:
+  - Check `enabled: true` is set in config
+  - Verify SPI is enabled: `ls /dev/spidev0.0` should exist
+  - Ensure user is in spi group: `groups $USER | grep spi`
+  - Check `count` matches your actual strip length
+- **Wrong colors**: Verify `timing` is 800 for WS2812B (not WS2811)
 - **Flickering**: Ensure common ground between Pi and LED PSU
+- **Only first few LEDs work**: Insufficient power - use external 5V PSU
 
 ### Camera
 

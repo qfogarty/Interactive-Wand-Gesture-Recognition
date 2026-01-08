@@ -6,13 +6,15 @@ project:
   version: "1.0.0"
 
 hardware:
-  # LED Strip Configuration
+  # LED Strip Configuration (WS2812B via SPI)
+  # IMPORTANT: Pi 5 uses SPI method - connect LED DIN to Pin 19 (GPIO10/MOSI)
+  # Traditional GPIO18 PWM methods (rpi_ws281x) do NOT work on Raspberry Pi 5
   led:
     enabled: false  # Set to true when LED strip is connected
-    count: 30
-    timing: 800  # 800 for WS2812B
-    spi_device: "/dev/spidev0.0"
-    gpio_pin: 19  # GPIO10/MOSI for Pi 5
+    count: 30       # Number of LEDs in your strip
+    timing: 800     # 800 for WS2812B, 400 for WS2811
+    spi_device: "/dev/spidev0.0"  # SPI0 device path
+    gpio_pin: 19    # Physical Pin 19 = GPIO10/MOSI (for reference only, SPI uses MOSI)
 
   # Camera Configuration
   camera:
@@ -22,16 +24,18 @@ hardware:
     brightness: -0.3
 
   # Servo Configuration (optional)
+  # Connect servo signal wire to Physical Pin 32 (GPIO12)
   servo:
     enabled: false  # Set to true if using servo
-    gpio_pin: 12
+    gpio_pin: 12    # GPIO12 (BCM) = Physical Pin 32
     min_pulse_width: 0.0005
     max_pulse_width: 0.0025
 
-  # IR Illuminator (optional)
+  # IR Illuminator (optional) - for PWM brightness control via MOSFET
+  # Connect MOSFET gate to Physical Pin 12 (GPIO18)
   ir_illuminator:
     enabled: false  # Set to true if using PWM control
-    gpio_pin: 18
+    gpio_pin: 18    # GPIO18 (BCM) = Physical Pin 12
     pwm_frequency: 1000
 
 detection:
@@ -72,7 +76,7 @@ detection:
 
     # Brightness threshold - reflector must be this bright to be detected
     # Increase if detecting random movement, decrease if wand not detected
-    brightness_threshold: 120
+    brightness_threshold: 180
 
     # Kalman filter smoothing
     kalman:

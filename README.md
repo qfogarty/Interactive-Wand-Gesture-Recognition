@@ -105,7 +105,7 @@ If detection is inconsistent, adjust these values in `config.yaml` under `detect
 
 | Setting | Default | Try if... |
 |---------|---------|-----------|
-| `brightness_threshold` | 120 | Detects random movement → increase to 150+ |
+| `brightness_threshold` | 180 | Detects random movement → increase to 200+ |
 | `blob_detector.min_threshold` | 80 | Wand not detected → lower to 60 |
 | `kalman.max_jump_distance` | 100 | Tracking too strict → increase to 150 |
 | `temporal.required_frames` | 3 | Response too slow → lower to 2 |
