@@ -10,14 +10,24 @@ from PIL import Image
 import numpy as np
 import joblib
 
+from utils.casting import PREPROCESS_VERSION, normalize_ink
+
+TRAIN_COMMAND = "python3 DatasetCreation/train_spell_classifier.py"
+
 # Model cache - avoids reloading from disk on every prediction
 _model_cache = {}
 
 
 def get_model(model_path):
-    """Load and cache the sklearn model."""
+    """Load and cache the sklearn model, refusing one trained on a different input."""
     if model_path not in _model_cache:
-        _model_cache[model_path] = joblib.load(model_path)
+        saved = joblib.load(model_path)
+        if not isinstance(saved, dict) or saved.get("preprocess_version") != PREPROCESS_VERSION:
+            raise ValueError(
+                f"The model at {model_path} was trained for an older version of this app. "
+                f"Retrain it with: {TRAIN_COMMAND}"
+            )
+        _model_cache[model_path] = saved["model"]
     return _model_cache[model_path]
 
 
@@ -26,7 +36,7 @@ def predict_spell_from_array(img_array, model_path):
     Predict spell from numpy array directly (avoids disk I/O).
 
     Args:
-        img_array: Grayscale numpy array (any shape, will be flattened)
+        img_array: Normalized 28x28 grayscale array from utils.casting
         model_path: Path to the sklearn model file
 
     Returns:
@@ -53,8 +63,8 @@ def predict_spell(img_path, model_path):
     # Open the image from the given path and convert it to grayscale
     img = Image.open(img_path).convert("L")
 
-    # Convert the image to a NumPy array and flatten it to a 1D vector
-    img = np.array(img).reshape(1, -1)
+    # Convert to the normalized input the model was trained on, as a 1D vector
+    img = normalize_ink(np.array(img)).reshape(1, -1)
 
     # Load the pre-trained classifier model (cached)
     clf = get_model(model_path)

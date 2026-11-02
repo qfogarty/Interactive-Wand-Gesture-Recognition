@@ -205,7 +205,8 @@ def configure_detection():
     print(f"\n{Colors.BOLD}Gesture Detection:{Colors.NC}")
     config['presence_duration'] = ask_number("Wand presence duration (seconds)", 0.6)
     config['stillness_duration'] = ask_number("Stillness duration for spell completion (seconds)", 1.0)
-    config['movement_threshold'] = ask_number("Movement threshold (pixels)", 6, min_val=1)
+    config['motion_radius'] = ask_number("Motion radius: moving less than this counts as still (pixels)", 15, min_val=1)
+    config['min_trace_size'] = ask_number("Smallest gesture accepted (pixels)", 40, min_val=1)
 
     return config
 

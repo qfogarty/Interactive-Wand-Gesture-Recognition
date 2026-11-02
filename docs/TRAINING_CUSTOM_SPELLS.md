@@ -120,7 +120,12 @@ After recent refactoring, LED animations and audio are managed by dedicated util
 - `play_spell_sound(sound_effect, background_volume)` - Play spell sound with volume ducking
 
 **Main Application** (`harry_potter_wand_cv.py`):
-- `threaded_predict(mask)` - Spell prediction and effect triggering
+- `threaded_predict(trace_end)` - Spell prediction and effect triggering
+
+**Casting Logic** (`utils/casting.py`):
+- `TraceTracker` - Decides when a trace starts and ends
+- `normalize_ink(image)` and `trace_to_input(points)` - The classifier input, shared by training and live casting
+- `decide_spell(prediction, last_move)` - Maps a prediction to a result and its on-screen message
 
 When adding custom spells, you'll primarily edit:
 1. `utils/animations.py` - Add new LED color schemes
@@ -221,6 +226,8 @@ Cross-validation accuracy: 98.5%
 Test set accuracy: 97.2%
 Classifier saved to: new_custom_classifier.pkl
 ```
+
+Training passes every sample through `normalize_ink`, the same function live casting uses. The saved model records this input version, and the app refuses a model trained on a different one.
 
 **Accuracy targets:**
 - Excellent: >95%
@@ -373,52 +380,56 @@ def move_servo_smoothly(target_func):
 
 ### C. Update Prediction Handling
 
-Location: **Line ~175** (in the `threaded_predict()` function)
+Location: `decide_spell()` in `utils/casting.py`, and `threaded_predict()` in `harry_potter_wand_cv.py`
 
-Map classifier predictions to spell names:
+Map classifier predictions to spell names and their on-screen messages:
 
 ```python
-def threaded_predict(mask):
-    global lastMove, predicting
+# utils/casting.py
+def decide_spell(prediction, last_move):
+    if prediction == "0":
+        if last_move == 0:
+            return "spell", "Alohamora!", 1
+        return "ignored", "Already open: cast Colloportus", last_move
+    if prediction == "1":
+        if last_move == 1:
+            return "spell", "Colloportus!", 0
+        return "ignored", "Already closed: cast Alohamora", last_move
+
+    # ADD YOUR NEW SPELLS HERE
+    if prediction == "2":
+        return "spell", "Lumos!", last_move
+    if prediction == "3":
+        return "spell", "Incendio!", last_move
+    if prediction == "4":
+        return "spell", "Aguamenti!", last_move
+
+    raise ValueError(f"Unknown prediction: {prediction}")
+```
+
+```python
+# harry_potter_wand_cv.py, inside threaded_predict()
+if kind == "spell":
     try:
-        mask = cv2.GaussianBlur(mask, (5, 5), 0)
-        _, mask = cv2.threshold(mask, 80, 255, cv2.THRESH_BINARY)
-        mask = cv2.resize(mask, (28, 28), interpolation=cv2.INTER_AREA)
-        mask = cv2.dilate(mask, (3, 3))
-        cv2.imwrite(LASTFRAME_PATH, mask)
-
-        from harry_potter_wand_sklearn import predict_spell
-        prediction = str(predict_spell(LASTFRAME_PATH, MODEL_PATH))
-        print("Prediction:", prediction)
-
-        if prediction == "0" and lastMove == 0:
-            print("Alohamora!!")
-            play_spell_sound(ALOHA_SOUND)
-            move_servo_smoothly("open")
-            lastMove = 1
-        elif prediction == "1" and lastMove == 1:
-            print("Colloportus!!")
-            play_spell_sound(COLLO_SOUND)
-            move_servo_smoothly("close")
-            lastMove = 0
+        if prediction == "0":
+            play_spell_sound(ALOHA_SOUND, bg_volume)
+            move_servo_smoothly(neo, servo, "open")
+        elif prediction == "1":
+            play_spell_sound(COLLO_SOUND, bg_volume)
+            move_servo_smoothly(neo, servo, "close")
 
         # ADD YOUR NEW SPELLS HERE
         elif prediction == "2":
-            print("Lumos!!")
-            # play_spell_sound(LUMOS_SOUND)  # Add if you have sound
-            move_servo_smoothly("lumos")
+            # play_spell_sound(LUMOS_SOUND, bg_volume)  # Add if you have sound
+            move_servo_smoothly(neo, servo, "lumos")
         elif prediction == "3":
-            print("Incendio!!")
-            # play_spell_sound(INCENDIO_SOUND)
-            move_servo_smoothly("incendio")
+            # play_spell_sound(INCENDIO_SOUND, bg_volume)
+            move_servo_smoothly(neo, servo, "incendio")
         elif prediction == "4":
-            print("Aguamenti!!")
-            # play_spell_sound(AQUA_SOUND)
-            move_servo_smoothly("aqua")
-
-    finally:
-        with prediction_lock:
-            predicting = False
+            # play_spell_sound(AQUA_SOUND, bg_volume)
+            move_servo_smoothly(neo, servo, "aqua")
+    except Exception as e:
+        outcomes.put((None, CastOutcome("error", f"Spell effect failed: {e}")))
 ```
 
 **Note:** For spells without servo movement, you don't need the `lastMove` state checking. Only "open" and "close" need that to prevent repeating the same servo action.
@@ -717,9 +728,9 @@ elif target_func == "rainbow":
    params.minCircularity = 0.5  # Lower from 0.75 for less strict shapes
    ```
 
-4. Increase stillness duration to allow more time:
-   ```python
-   stillness_duration_threshold = 1.5  # Increase from 1.0
+4. Increase stillness duration in `config.yaml` to allow more time:
+   ```yaml
+   stillness_duration: 1.5  # Increase from 1.0
    ```
 
 ### Sound Not Playing

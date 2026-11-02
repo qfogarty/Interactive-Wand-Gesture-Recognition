@@ -35,7 +35,10 @@ def test_python_syntax():
         "utils/animations.py",
         "utils/audio.py",
         "utils/reflector_detector.py",
+        "utils/casting.py",
+        "utils/camera.py",
         "DatasetCreation/train_spell_classifier.py",
+        "DatasetCreation/render_gesture_card.py",
     ]
 
     errors = []

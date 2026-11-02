@@ -22,7 +22,8 @@ def _build_detection_config(hw_config: dict, detect_config: dict) -> dict:
         'gesture': {
             'presence_duration': detect_config['presence_duration'],
             'stillness_duration': detect_config['stillness_duration'],
-            'movement_threshold': detect_config['movement_threshold']
+            'motion_radius': detect_config['motion_radius'],
+            'min_trace_size': detect_config['min_trace_size']
         }
     }
 
@@ -84,7 +85,9 @@ def build_final_config(hw_config: dict, detect_config: dict, audio_config: dict)
                 'resolution': [hw_config['camera_width'], hw_config['camera_height']],
                 'exposure_time': hw_config['camera_exposure'],
                 'analogue_gain': hw_config['camera_gain'],
-                'brightness': hw_config['camera_brightness']
+                'brightness': hw_config['camera_brightness'],
+                'frame_rate': 30,
+                'lens_position': 1.0
             },
             'servo': {
                 'enabled': hw_config['servo_enabled'],

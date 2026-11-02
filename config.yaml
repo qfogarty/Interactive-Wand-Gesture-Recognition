@@ -19,9 +19,11 @@ hardware:
   # Camera Configuration
   camera:
     resolution: [640, 480]
-    exposure_time: 8000  # microseconds
+    exposure_time: 8000  # microseconds; null restores auto exposure
     analogue_gain: 6.0
     brightness: -0.3
+    frame_rate: 30
+    lens_position: 1.0  # dioptres, focus at about 1 m (autofocus camera modules only)
 
   # Servo Configuration (optional)
   # Connect servo signal wire to Physical Pin 32 (GPIO12)
@@ -55,7 +57,8 @@ detection:
   gesture:
     presence_duration: 0.6  # seconds
     stillness_duration: 1.0  # seconds
-    movement_threshold: 6  # pixels
+    motion_radius: 15  # pixels; moving less than this counts as holding still
+    min_trace_size: 40  # pixels; smaller gestures show "Too small"
 
   # Reflector mode configuration (for passive IR reflector wands)
   reflector:

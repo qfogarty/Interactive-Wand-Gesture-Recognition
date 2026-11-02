@@ -1,4 +1,4 @@
-.PHONY: help test test-docker test-local test-syntax test-config test-utils test-docs test-gpio test-mocks test-animations build-test clean led-demo calibrate
+.PHONY: help test test-docker test-local test-syntax test-config test-utils test-docs test-gpio test-mocks test-animations test-casting test-recognition build-test clean led-demo calibrate
 
 help:
 	@echo "Interactive Wand - Testing Commands"
@@ -12,6 +12,8 @@ help:
 	@echo "  make test-gpio        Run GPIO configuration tests"
 	@echo "  make test-mocks       Run hardware mock tests"
 	@echo "  make test-animations  Run animation tests with mocks"
+	@echo "  make test-casting     Run casting logic tests"
+	@echo "  make test-recognition Run recognition tests (needs cv2 and scikit-learn)"
 	@echo ""
 	@echo "Hardware Testing (Raspberry Pi only):"
 	@echo "  make led-demo         Interactive LED animation demo"
@@ -60,6 +62,14 @@ test-mocks:
 test-animations:
 	@echo "Running animation tests with mocks..."
 	@python3 tests/test_animations_mocked.py
+
+test-casting:
+	@echo "Running casting logic tests..."
+	@python3 tests/test_casting.py
+
+test-recognition:
+	@echo "Running recognition tests..."
+	@python3 tests/test_recognition.py
 
 # Docker testing
 build-test:

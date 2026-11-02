@@ -9,11 +9,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
+# Add parent directory to path to import project modules
+parent_dir = Path(__file__).parent.parent.resolve()
+sys.path.insert(0, str(parent_dir))
+
+from utils.casting import INPUT_SIZE, PREPROCESS_VERSION, normalize_ink
+
 # === Load configuration or use dynamic paths ===
 try:
-    # Add parent directory to path to import config_loader
-    parent_dir = Path(__file__).parent.parent.resolve()
-    sys.path.insert(0, str(parent_dir))
     from config_loader import get_config
     config = get_config()
     dataset_dir = Path(config.paths.dataset_dir)
@@ -26,6 +29,9 @@ except (ImportError, SystemExit):
 # === Load saved training data ===
 X = np.load(str(dataset_dir / "X_spells.npy"))  # shape: (num_samples, 784)
 y = np.load(str(dataset_dir / "y_spells.npy"))  # labels: 0 = open, 1 = close
+
+# Same normaliser as live casting, so the model learns shape, not position or size
+X = np.array([normalize_ink(sample.reshape(INPUT_SIZE, INPUT_SIZE)).ravel() for sample in X])
 
 # === Split into training and testing sets ===
 X_train, X_test, y_train, y_test = train_test_split(
@@ -60,5 +66,9 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
 # === Save the best model ===
-joblib.dump(grid.best_estimator_, str(output_path), compress=3)
+joblib.dump(
+    {"model": grid.best_estimator_, "preprocess_version": PREPROCESS_VERSION},
+    str(output_path),
+    compress=3,
+)
 print(f"Model saved as {output_path}")

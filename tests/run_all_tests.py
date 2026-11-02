@@ -61,6 +61,8 @@ def main():
         ("GPIO Configuration", tests_dir / "test_gpio_config.py"),
         ("Hardware Mocks", tests_dir / "test_hardware_mocks.py"),
         ("Animation Logic (Mocked)", tests_dir / "test_animations_mocked.py"),
+        ("Casting Logic", tests_dir / "test_casting.py"),
+        ("Recognition", tests_dir / "test_recognition.py"),
     ]
 
     results = {}

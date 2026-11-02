@@ -186,7 +186,8 @@ graph TD
 
     GEST --> PRES[presence_duration: 0.6s]
     GEST --> STILL[stillness_duration: 1.0s]
-    GEST --> MOVE[movement_threshold: 6px]
+    GEST --> MOVE[motion_radius: 15px]
+    GEST --> SIZE[min_trace_size: 40px]
 
     AUDIO --> BG[background_volume: 0.6]
     AUDIO --> SPELL[spell_volume: 1.0]
@@ -269,19 +270,25 @@ Configure Raspberry Pi Camera Module 3 NoIR settings for optimal IR tracking.
 hardware:
   camera:
     resolution: [640, 480]       # Width x Height in pixels
-    exposure_time: 8000          # Exposure in microseconds (8ms)
+    exposure_time: 8000          # Exposure in microseconds (8ms); null for auto exposure
     analogue_gain: 6.0           # Sensor gain (1.0-16.0)
     brightness: -0.3             # Brightness adjustment (-1.0 to 1.0)
+    frame_rate: 30               # Frames per second
+    lens_position: 1.0           # Focus in dioptres (1.0 is about 1 m)
 ```
+
+The app and `calibrate_reflector.py` both apply these settings from the first frame.
 
 #### Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | `resolution` | [int, int] | [640, 480] | 320x240 - 4608x2592 | Camera resolution (width, height) |
-| `exposure_time` | int | 8000 | 100-200000 | Exposure time in microseconds |
+| `exposure_time` | int or null | 8000 | 100-200000 | Exposure time in microseconds. Set to `null` to go back to auto exposure, which also ignores `analogue_gain` |
 | `analogue_gain` | float | 6.0 | 1.0-16.0 | Sensor gain for low-light sensitivity |
 | `brightness` | float | -0.3 | -1.0 to 1.0 | Image brightness adjustment |
+| `frame_rate` | int | 30 | 1-120 | Frames per second. Exposure can't be longer than one frame |
+| `lens_position` | float | 1.0 | 0.0-10.0 | Manual focus in dioptres. Only applies to autofocus camera modules |
 
 #### Tuning Tips
 
@@ -576,7 +583,8 @@ detection:
   gesture:
     presence_duration: 0.6       # Time wand must be visible before tracing (seconds)
     stillness_duration: 1.0      # Time wand must be still to trigger prediction (seconds)
-    movement_threshold: 6        # Minimum pixel movement to count as "moving"
+    motion_radius: 15            # Moving less than this counts as holding still (pixels)
+    min_trace_size: 40           # Smallest gesture accepted (pixels)
 ```
 
 #### Parameters
@@ -585,24 +593,28 @@ detection:
 |-----------|------|---------|-------------|
 | `presence_duration` | float | 0.1-2.0 | Seconds wand must be visible before starting trace |
 | `stillness_duration` | float | 0.5-2.0 | Seconds wand must be still to complete spell |
-| `movement_threshold` | int | 1-20 | Pixels per frame to count as movement |
+| `motion_radius` | int | 5-50 | Pixels the wand must move to start a trace. Staying within this distance counts as holding still. There is no speed requirement |
+| `min_trace_size` | int | 10-200 | Pixels the larger side of a gesture must span. Smaller traces show "Too small: draw bigger" |
 
 #### Behavior
 
 1. **Wand appears** → Wait `presence_duration`
-2. **Wand moves** → Start tracing path (yellow line)
+2. **Wand moves** more than `motion_radius` → Start tracing path (yellow line)
 3. **Wand stops** → Wait `stillness_duration`
-4. **Spell complete** → Run ML prediction
+4. **Trace ends** → Run ML prediction and show the result on screen. A trace also ends if the wand is out of view for `stillness_duration`
 
 #### Tuning
 
 **Spells trigger too quickly:**
 - **Increase** `stillness_duration` (try 1.5)
-- **Decrease** `movement_threshold` (try 4)
+- **Decrease** `motion_radius` (try 10)
 
 **Spells won't trigger:**
 - **Decrease** `stillness_duration` (try 0.7)
-- **Increase** `movement_threshold` (try 8-10)
+- **Increase** `motion_radius` if a shaky hand keeps the trace going (try 20-25)
+
+**"Too small: draw bigger" on normal gestures:**
+- **Decrease** `min_trace_size` (try 25)
 
 **False starts from reflections:**
 - **Increase** `presence_duration` (try 0.8-1.0)
@@ -642,7 +654,7 @@ All paths are relative to project root and automatically resolved.
 paths:
   sounds_dir: "Sounds"                          # Spell sound effects folder
   model_file: "new_custom_classifier.pkl"       # Trained ML model
-  lastframe_file: "lastframe.jpg"               # Temp file for predictions
+  lastframe_file: "lastframe.jpg"               # Used only when running harry_potter_wand_sklearn.py directly
   dataset_dir: "DatasetCreation"                # Training data location
 ```
 

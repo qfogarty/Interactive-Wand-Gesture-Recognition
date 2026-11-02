@@ -87,7 +87,8 @@ def test_config_builder():
             'min_inertia': 0.3,
             'presence_duration': 0.6,
             'stillness_duration': 1.0,
-            'movement_threshold': 6,
+            'motion_radius': 15,
+            'min_trace_size': 40,
         }
 
         audio_config = {

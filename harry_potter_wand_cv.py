@@ -1,15 +1,25 @@
-import math
-import random
+import queue
+import sys
 import time
 from threading import Thread, Lock
 
 import cv2
 import numpy as np
-from picamera2 import Picamera2
 from pygame import mixer
 
-from utils.animations import move_servo_smoothly, spell_fade_out
+from harry_potter_wand_sklearn import TRAIN_COMMAND, get_model, predict_spell_from_array
+from utils.animations import move_servo_smoothly
 from utils.audio import play_spell_sound
+from utils.camera import camera_settings, open_camera
+from utils.casting import (
+    BUSY_OUTCOME,
+    CastOutcome,
+    TraceTracker,
+    decide_spell,
+    format_attempt,
+    rejected_outcome,
+    trace_to_input,
+)
 
 # Load configuration
 try:
@@ -24,14 +34,23 @@ except (ImportError, SystemExit):
 # === Configuration and Paths ===
 if USE_CONFIG:
     PROJECT_ROOT = config.paths.project_root
-    LASTFRAME_PATH = config.paths.lastframe
     MODEL_PATH = config.paths.model
 else:
     # Backward compatibility fallback
     from pathlib import Path
     PROJECT_ROOT = Path(__file__).parent.resolve()
-    LASTFRAME_PATH = PROJECT_ROOT / "lastframe.jpg"
     MODEL_PATH = PROJECT_ROOT / "new_custom_classifier.pkl"
+
+# Refuse a missing or outdated model before anything starts
+try:
+    get_model(MODEL_PATH)
+except FileNotFoundError:
+    print(f"ERROR: No trained model at {MODEL_PATH}")
+    print(f"Train one with: {TRAIN_COMMAND}")
+    sys.exit(1)
+except ValueError as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
 
 # Initialize audio and load sound effects/music
 mixer.init()
@@ -50,12 +69,8 @@ mixer.music.load(BACKGROUND_TRACK)
 mixer.music.play(-1)
 
 # === Camera Initialization ===
-picam2 = Picamera2()
-picam2.preview_configuration.main.size = (640, 480)
-picam2.preview_configuration.main.format = "RGB888"
-picam2.configure("preview")
-picam2.start()
-time.sleep(1)  # Allow camera to warm up
+camera_cfg = config.hardware.camera if USE_CONFIG else {}
+picam2 = open_camera(camera_cfg)
 
 # === Servo Setup (Optional) ===
 servo = None
@@ -142,139 +157,135 @@ if USE_CONFIG and config.detection.get('wand_type', 'led') == 'reflector':
 else:
     print("LED wand mode enabled")
 
-# === Gesture State Management ===
-class GestureState:
-    """Manages wand gesture tracking state"""
-
-    def __init__(self):
-        self.last_move = 0  # 0=open, 1=closed
-        self.points = []  # Points in current trace
-        self.trace_started = False
-        self.trace_start_time = None
-        self.last_blob_time = None
-        self.last_blob_position = None
-        self.stillness_timer = 0
-        self.status_text = "Ready..."
-        self.last_valid_output_frame = None
-
-    def reset_trace(self):
-        """Reset all trace-related state"""
-        self.trace_started = False
-        self.trace_start_time = None
-        self.last_blob_position = None
-        self.stillness_timer = 0
-        self.status_text = "Ready..."
-        self.points.clear()
-
-    def update_position(self, position, current_time):
-        """Update blob position and timestamp"""
-        self.last_blob_position = position
-        self.last_blob_time = current_time
-
-    def start_trace(self):
-        """Begin gesture tracing"""
-        self.trace_started = True
-        self.points.clear()
-        self.status_text = "Tracing..."
-        print("Start Tracing!!")
-
-    def add_trace_point(self, x, y):
-        """Add point to trace if valid"""
-        if not np.isnan(x) and not np.isnan(y):
-            self.points.append((int(x), int(y)))
-
-    def is_trace_too_short(self, stillness_duration_threshold):
-        """Check if trace should be cancelled"""
-        return len(self.points) < 10 and self.stillness_timer > (stillness_duration_threshold / 0.05)
-
-    def is_trace_complete(self, stillness_duration_threshold):
-        """Check if trace is complete"""
-        return self.stillness_timer > (stillness_duration_threshold / 0.05) and len(self.points) >= 10
-
-    def update_stillness(self, blob_movement, movement_threshold):
-        """Update stillness timer based on movement"""
-        if blob_movement < movement_threshold:
-            self.stillness_timer += 1
-        else:
-            self.stillness_timer = 0
-
-
 # === Global State Variables ===
-lastMove = 0  # 0=open, 1=closed (still needed by threaded_predict)
+lastMove = 0  # 0=open, 1=closed (owned by threaded_predict)
 
-# Gesture detection thresholds
+# Gesture detection thresholds. Older configs may lack the two newer keys.
 if USE_CONFIG:
-    presence_duration_threshold = config.detection.gesture.presence_duration
-    stillness_duration_threshold = config.detection.gesture.stillness_duration
-    movement_threshold = config.detection.gesture.movement_threshold
+    gesture_cfg = config.detection.gesture
+    tracker = TraceTracker(
+        presence_duration=gesture_cfg.presence_duration,
+        stillness_duration=gesture_cfg.stillness_duration,
+        motion_radius=gesture_cfg.get('motion_radius', 15),
+        min_trace_size=gesture_cfg.get('min_trace_size', 40),
+    )
 else:
-    presence_duration_threshold = 0.6
-    stillness_duration_threshold = 1.0
-    movement_threshold = 6
+    tracker = TraceTracker(
+        presence_duration=0.6,
+        stillness_duration=1.0,
+        motion_radius=15,
+        min_trace_size=40,
+    )
 
 # === Prediction Thread Control ===
 predicting = False
 prediction_lock = Lock()  # Ensures only one prediction runs at a time
 
+# === Outcomes ===
+# (trace_end, outcome) pairs. Only the main loop reads this and draws, because
+# cv2 GUI calls are not thread-safe. A trace_end of None means an extra message
+# about a trace that already has its log line.
+outcomes = queue.SimpleQueue()
 
-def screen_flash_feedback(spell_type):
-    """Flash screen border when LEDs are disabled for visual feedback.
+OUTCOME_DISPLAY_SECONDS = 2.5
+INSET_SCALE = 4
 
-    WARNING: This function uses cv2.imshow/waitKey which are NOT thread-safe.
-    Only call from the main thread, never from threaded_predict or similar.
-    """
-    if neo is not None:
-        return  # LEDs handle the feedback
+ATTEMPT_LOG = PROJECT_ROOT / "logs" / "attempts.jsonl"
+attempt_log_warned = False
 
-    # Spell colors: purple for open, blue for close
-    color = (180, 60, 255) if spell_type == "open" else (70, 200, 255)
 
-    # Create a colored frame and flash it
-    for _ in range(8):
-        flash_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        cv2.rectangle(flash_frame, (0, 0), (640, 480), color, 15)
-        cv2.putText(flash_frame, spell_type.upper(), (220, 250),
-                    cv2.FONT_HERSHEY_SIMPLEX, 2, color, 3)
-        cv2.imshow("Wand Tracking", flash_frame)
-        cv2.waitKey(60)
+def warn_attempt_log(error):
+    """Warn once: losing the log must never stop the app."""
+    global attempt_log_warned
+    if not attempt_log_warned:
+        print(f"WARNING: Could not write {ATTEMPT_LOG}: {error}")
+        attempt_log_warned = True
+
+
+def log_attempt(trace_end, outcome):
+    try:
+        with open(ATTEMPT_LOG, "a") as f:
+            f.write(format_attempt(trace_end, outcome, camera_settings(camera_cfg)) + "\n")
+    except OSError as e:
+        warn_attempt_log(e)
+
+
+try:
+    ATTEMPT_LOG.parent.mkdir(exist_ok=True)
+except OSError as e:
+    warn_attempt_log(e)
+
+
+def draw_outcome(image, outcome):
+    """Draw the message and the classifier's input on the tracking view."""
+    height, width = image.shape[:2]
+    position = (20, height - 20)
+    cv2.putText(image, outcome.message, position, cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 5)
+    cv2.putText(image, outcome.message, position, cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
+
+    if outcome.input_image is not None:
+        inset = cv2.resize(outcome.input_image, None, fx=INSET_SCALE, fy=INSET_SCALE,
+                           interpolation=cv2.INTER_NEAREST)
+        size = inset.shape[0]
+        image[10:10 + size, width - 10 - size:width - 10] = cv2.cvtColor(inset, cv2.COLOR_GRAY2BGR)
 
 
 # === Prediction Thread ===
-# Handles image preprocessing and model inference in a thread
-# Import at module level to avoid per-prediction import overhead
-from harry_potter_wand_sklearn import predict_spell_from_array
-
-def threaded_predict(mask):
+def threaded_predict(trace_end):
     global lastMove, predicting
     bg_volume = config.audio.background_volume if USE_CONFIG else 0.6
 
     try:
-        mask = cv2.GaussianBlur(mask, (5, 5), 0)
-        _, mask = cv2.threshold(mask, 80, 255, cv2.THRESH_BINARY)
-        mask = cv2.resize(mask, (28, 28), interpolation=cv2.INTER_AREA)
-        mask = cv2.dilate(mask, (3, 3))
+        try:
+            input_image = trace_to_input(trace_end.points)
+            prediction = str(predict_spell_from_array(input_image, MODEL_PATH))
+            kind, message, lastMove = decide_spell(prediction, lastMove)
+        except Exception as e:
+            outcomes.put((trace_end, CastOutcome("error", f"Prediction failed: {e}")))
+            return
 
-        # Use array-based prediction to skip disk I/O (saves ~10-20ms)
-        prediction = str(predict_spell_from_array(mask, MODEL_PATH))
-        print("Prediction:", prediction)
+        # Queue first so the message appears as the sound starts
+        outcomes.put((trace_end, CastOutcome(kind, message, input_image, prediction)))
 
-        if prediction == "0" and lastMove == 0:
-            print("Alohamora!!")
-            play_spell_sound(ALOHA_SOUND, bg_volume)
-            move_servo_smoothly(neo, servo, "open")
-            lastMove = 1
-        elif prediction == "1" and lastMove == 1:
-            print("Colloportus!!")
-            play_spell_sound(COLLO_SOUND, bg_volume)
-            move_servo_smoothly(neo, servo, "close")
-            lastMove = 0
+        if kind == "spell":
+            try:
+                if prediction == "0":
+                    play_spell_sound(ALOHA_SOUND, bg_volume)
+                    move_servo_smoothly(neo, servo, "open")
+                else:
+                    play_spell_sound(COLLO_SOUND, bg_volume)
+                    move_servo_smoothly(neo, servo, "close")
+            except Exception as e:
+                outcomes.put((None, CastOutcome("error", f"Spell effect failed: {e}")))
     finally:
         with prediction_lock:
             predicting = False
 
+
+def handle_trace_end(trace_end):
+    """Give an ended trace its one outcome, directly or through the worker."""
+    global predicting
+
+    if reflector_detector:
+        reflector_detector.reset()
+
+    rejected = rejected_outcome(trace_end)
+    if rejected:
+        outcomes.put((trace_end, rejected))
+        return
+
+    with prediction_lock:
+        busy = predicting
+        predicting = True
+    if busy:
+        outcomes.put((trace_end, BUSY_OUTCOME))
+    else:
+        Thread(target=threaded_predict, args=(trace_end,)).start()
+
+
 # === Main Loop ===
-# Initialize gesture state
-state = GestureState()
+shown_outcome = None
+shown_until = 0
 
 try:
     while True:
@@ -298,80 +309,41 @@ try:
         output_frame = cv2.drawKeypoints(gray, keypoints, np.array([]), (0, 0, 255),
                                          cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-        current_time = time.time()
+        # Monotonic: the Pi's wall clock can jump when NTP syncs after boot
+        now = time.monotonic()
         points_array = cv2.KeyPoint_convert(keypoints)
+        position = tuple(float(v) for v in points_array[0]) if len(points_array) > 0 else None
 
-        if len(points_array) > 0:
-            x, y = points_array[0]
-            current_position = (x, y)
-            blob_movement = 0
-            if state.last_blob_position:
-                blob_movement = math.hypot(x - state.last_blob_position[0], y - state.last_blob_position[1])
+        trace_end = tracker.update(position, now)
+        if trace_end:
+            handle_trace_end(trace_end)
 
-            # Start trace if wand is present and moving
-            if not state.trace_started:
-                if state.trace_start_time is None:
-                    state.trace_start_time = current_time
-                elif current_time - state.trace_start_time > presence_duration_threshold and blob_movement > movement_threshold:
-                    state.start_trace()
-            else:
-                # Add wand path to points
-                state.add_trace_point(x, y)
-                for i in range(1, len(state.points)):
-                    pt1 = state.points[i - 1]
-                    pt2 = state.points[i]
-                    if pt1 and pt2:
-                        cv2.line(output_frame, pt1, pt2, (255, 255, 0), 7)
-                state.last_valid_output_frame = output_frame.copy()
+        # Draw the live trail
+        trail = tracker.points
+        for start, end in zip(trail, trail[1:]):
+            cv2.line(output_frame, start[:2], end[:2], (255, 255, 0), 7)
 
-                # Track if wand is staying still
-                state.update_stillness(blob_movement, movement_threshold)
-
-                # Cancel short traces
-                if state.is_trace_too_short(stillness_duration_threshold):
-                    print("Canceled trace — likely a reflection.")
-                    state.reset_trace()
-                    if reflector_detector:
-                        reflector_detector.reset()
-                    time.sleep(0.5)
-                    continue
-
-                # Spell casting complete when still long enough
-                if state.is_trace_complete(stillness_duration_threshold):
-                    print("Tracing Done!!")
-                    mask = cv2.inRange(state.last_valid_output_frame, np.array([255, 255, 0]), np.array([255, 255, 0]))
-                    with prediction_lock:
-                        if not predicting:
-                            predicting = True
-                            Thread(target=threaded_predict, args=(mask,)).start()
-                    state.reset_trace()
-                    if reflector_detector:
-                        reflector_detector.reset()
-                    time.sleep(1)
-                    continue
-
-            state.update_position(current_position, current_time)
-        else:
-            # Trigger prediction if wand leaves the frame while tracing
-            if state.trace_started and state.last_blob_time and time.time() - state.last_blob_time > stillness_duration_threshold:
-                print("Tracing Done (Wand Left Frame)!!")
-                mask = cv2.inRange(state.last_valid_output_frame, np.array([255, 255, 0]), np.array([255, 255, 0]))
-                with prediction_lock:
-                    if not predicting:
-                        predicting = True
-                        Thread(target=threaded_predict, args=(mask,)).start()
-                state.reset_trace()
-                if reflector_detector:
-                    reflector_detector.reset()
-                time.sleep(1)
-                continue
-            state.trace_start_time = None
+        # Report every outcome the worker or the trace handler produced
+        while True:
+            try:
+                ended_trace, outcome = outcomes.get_nowait()
+            except queue.Empty:
+                break
+            print(outcome.message)
+            if ended_trace:
+                log_attempt(ended_trace, outcome)
+            shown_outcome = outcome
+            shown_until = now + OUTCOME_DISPLAY_SECONDS
 
         # Draw status and visuals
-        cv2.putText(output_frame, state.status_text, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
-                    (0, 255, 0) if state.status_text == "Ready..." else (0, 100, 255), 2)
-        if state.trace_started and int(time.time() * 4) % 2 == 0:
-            cv2.rectangle(output_frame, (5, 5), (635, 475), (255, 0, 0), 3)
+        status_text = "Tracing..." if tracker.tracing else "Ready..."
+        cv2.putText(output_frame, status_text, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+                    (0, 100, 255) if tracker.tracing else (0, 255, 0), 2)
+        if tracker.tracing and int(now * 4) % 2 == 0:
+            height, width = output_frame.shape[:2]
+            cv2.rectangle(output_frame, (5, 5), (width - 5, height - 5), (255, 0, 0), 3)
+        if shown_outcome and now < shown_until:
+            draw_outcome(output_frame, shown_outcome)
 
         cv2.imshow("Wand Tracking", output_frame)
         cv2.imshow("Gray Feed", gray)

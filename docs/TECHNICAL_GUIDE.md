@@ -327,7 +327,8 @@ flowchart LR
 
 **Key Parameters** (tunable in `config.yaml`):
 - `stillness_duration`: How long wand must be still to complete gesture (default: 1.0s)
-- `movement_threshold`: Minimum pixel movement to count as motion (default: 6px)
+- `motion_radius`: Moving less than this counts as holding still (default: 15px)
+- `min_trace_size`: Smallest gesture accepted (default: 40px)
 - `min_area`/`max_area`: Blob size range for wand detection (default: 15-500px²)
 
 ---
@@ -782,10 +783,10 @@ params.minCircularity = 0.75  # Lower if wand tip not perfectly round
 
 4. **Test Spell Casting:**
    - Hold wand with IR LED tip visible to camera
-   - Wait 0.6 seconds in view (trace will start)
-   - Draw spell gesture (upward swirl for "Alohamora", downward swirl for "Colloportus")
+   - Wait 0.6 seconds in view, then start moving (trace will start)
+   - Draw the spell gesture from the [gesture card](images/gesture-card.png): a circle with a vertical stroke for "Alohamora", a square hook for "Colloportus". Shapes are as seen on screen, and Alohamora must come first
    - Hold still for 1 second at end
-   - LED animation and sound should play if gesture recognized
+   - The result appears in the "Wand Tracking" window. LED animation and sound play if a spell fired
 
 5. **Exit:**
    - Press 'q' key in any window to exit safely
@@ -973,10 +974,11 @@ The interactive calibrator provides:
 
 | Problem | Solution |
 |---------|----------|
-| Spell not recognized | Draw gesture more deliberately (full, clear strokes). Ensure trace includes 10+ points (check console output). Verify stillness_duration allows completion (1 second still). Retrain classifier with more samples |
-| Wrong spell detected | Ensure gesture matches training data shape. Check last saved trace: `lastframe.jpg`. Retrain classifier if needed |
-| False triggers from reflections | Increase `presence_duration_threshold` (line 74). Use lower `minCircularity` to avoid detecting non-wand glints. Eliminate IR reflective surfaces in view |
-| Trace canceled too quickly | Increase `stillness_duration_threshold` (line 75). Draw gestures faster (less than 3 seconds total) |
+| Spell not recognized | Read the message in the "Wand Tracking" window. Compare the small image in its corner with the gesture card. Review `logs/attempts.jsonl` for the reason each attempt ended. Retrain classifier with more samples |
+| Wrong spell detected | Ensure gesture matches training data shape. The small image in the corner of "Wand Tracking" is what the classifier saw. Retrain classifier if needed |
+| Model error at launch | The model is missing or was trained on an older input. Run `python3 DatasetCreation/train_spell_classifier.py` |
+| False triggers from reflections | Increase `presence_duration` in `config.yaml`. Use higher `min_circularity` to avoid detecting non-wand glints. Eliminate IR reflective surfaces in view |
+| Trace ends too quickly | Increase `stillness_duration` in `config.yaml`. A pause shorter than `stillness_duration` does not end a trace |
 
 ### General Issues
 
@@ -1065,9 +1067,9 @@ Used to run the pre-trained SVM classifier concurrently.
 
 Pre-trained model for classifying spells based on trace shape. (Train your own with `train_spell_classifier.py`)
 
-**lastframe.jpg**
+**logs/attempts.jsonl**
 
-Latest wand trace visualization, saved for debugging or training.
+One line per ended trace, with its reason, outcome, prediction, raw points and camera settings. Not committed.
 
 **Sounds/**
 
