@@ -71,7 +71,7 @@ flowchart TD
 
     INSTALL --> |Installs| DEPS[Dependencies<br/>OpenCV, NumPy<br/>scikit-learn]
     WIZARD --> |Creates| CONFIG[config.yaml<br/>Hardware Settings]
-    TRAIN --> |Creates| MODEL[ML Model<br/>classifier.pkl]
+    TRAIN --> |Creates| MODEL[ML Model<br/>new_custom_classifier.pkl]
 
     style CLONE fill:#4a90e2,color:#fff
     style RUN fill:#50c878,color:#fff
@@ -145,8 +145,32 @@ flowchart LR
 ```
 
 **Default spells:**
-- **Alohamora** (unlock) - Purple LED animation
-- **Colloportus** (lock) - Blue LED animation
+- **Alohamora** (unlock) - Purple LED animation. Draw a circle with a vertical stroke through it.
+- **Colloportus** (lock) - Blue LED animation. Draw a square hook.
+
+![The two default gestures, as seen on screen](docs/images/gesture-card.png)
+
+These shapes are shown **as seen on screen**. The view is mirrored, so follow the "Wand Tracking" window rather than your hand. Cast Alohamora first: the spells alternate, starting from closed.
+
+To cast, hold the wand in view for a moment, draw the shape, then hold still for a second. Every attempt shows its result on screen, along with the image the classifier saw:
+
+| On screen | What to do |
+|-----------|------------|
+| `Alohamora!` or `Colloportus!` | Nothing, the spell worked |
+| `Already open: cast Colloportus` or `Already closed: cast Alohamora` | Cast the other spell |
+| `Too small: draw bigger` | Make the gesture larger, or move closer |
+| `Too short: draw the whole shape` | Keep the wand in view until you finish |
+| `Busy: try again` | Wait for the last spell's effects to finish |
+
+Any large, deliberate shape is treated as one of the two spells. The app can't reject an unknown shape yet.
+
+Each attempt is also recorded in `logs/attempts.jsonl`.
+
+**Updating from an older version?** You must retrain once, because the model's input changed. The app stops at launch and prints this command until you do:
+
+```bash
+python3 DatasetCreation/train_spell_classifier.py
+```
 
 ---
 
@@ -206,12 +230,12 @@ If you prefer manual tuning, adjust these values in `config.yaml` under `detecti
 
 ## Add Your Own Spells
 
-Want to create new spells? It's easy:
+Adding a spell takes code changes. The drawing tool alone doesn't create one:
 
 ```bash
 cd DatasetCreation
 
-# 1. Draw your new spell gesture 50-100 times
+# 1. Draw gesture samples
 python3 draw_spell_data.py
 
 # 2. Convert drawings to training data
@@ -221,7 +245,7 @@ python3 convert_to_training_data.py
 python3 train_spell_classifier.py
 ```
 
-That's it! The new spell will be recognized. To add custom LED colors and sounds, see the [Custom Spells Guide](docs/TRAINING_CUSTOM_SPELLS.md).
+As shipped, these commands add samples to Colloportus, because `draw_spell_data.py` saves with `LABEL = "close"`. They do not create a new spell. To add one, follow the code-edit steps in the [Custom Spells Guide](docs/TRAINING_CUSTOM_SPELLS.md).
 
 ---
 
@@ -267,7 +291,8 @@ make test-docs        # Documentation validation
 | Wand not detected | Check the "Gray Feed" window - wand tip should be a bright white dot |
 | Reflector wand not detected | Set `wand_type: "reflector"` in config.yaml. Ensure IR illuminator is on and near camera |
 | No sound | Run `speaker-test -t wav -c 2` to test audio output |
-| Spell not recognized | Draw gestures more deliberately, hold still at the end |
+| Spell not recognized | Read the message in the "Wand Tracking" window, and compare the small image in its corner with the [gesture card](docs/images/gesture-card.png) |
+| Model error at launch | Run `python3 DatasetCreation/train_spell_classifier.py` |
 
 For more help, see the [full troubleshooting guide](docs/TECHNICAL_GUIDE.md#troubleshooting).
 

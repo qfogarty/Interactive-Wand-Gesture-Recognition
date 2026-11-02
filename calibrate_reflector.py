@@ -79,6 +79,7 @@ class ReflectorCalibrator:
     def __init__(self):
         self.params = dict(self.DEFAULTS)
         self.camera = None
+        self.camera_cfg = {}
         self.bg_subtractor = None
         self.detection_history = []
         self.last_position = None
@@ -119,6 +120,8 @@ class ReflectorCalibrator:
             if config_path.exists():
                 with open(config_path) as f:
                     config = yaml.safe_load(f)
+
+                self.camera_cfg = config.get('hardware', {}).get('camera', {})
 
                 reflector = config.get('detection', {}).get('reflector', {})
 
@@ -161,23 +164,9 @@ class ReflectorCalibrator:
     def init_camera(self):
         """Initialize the Pi camera."""
         try:
-            from picamera2 import Picamera2
+            from utils.camera import open_camera
 
-            self.camera = Picamera2()
-            config = self.camera.create_preview_configuration(
-                main={"size": (640, 480), "format": "RGB888"}
-            )
-            self.camera.configure(config)
-            self.camera.start()
-
-            # Set camera controls for IR detection
-            self.camera.set_controls({
-                "ExposureTime": 8000,
-                "AnalogueGain": 6.0,
-                "Brightness": -0.3
-            })
-
-            time.sleep(0.5)  # Let camera warm up
+            self.camera = open_camera(self.camera_cfg)
             print("Camera initialized")
             return True
 

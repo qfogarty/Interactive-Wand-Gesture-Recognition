@@ -167,6 +167,46 @@ def test_internal_links():
         return True
 
 
+def test_docs_match_the_app():
+    """Test that user-facing docs drop retired terms and show the gesture card"""
+    print("\n" + "="*60)
+    print("RETIRED TERMS TEST")
+    print("="*60)
+
+    docs_to_check = [
+        "README.md",
+        "docs/CONFIGURATION.md",
+        "docs/TECHNICAL_GUIDE.md",
+        "docs/TRAINING_CUSTOM_SPELLS.md",
+    ]
+    retired = [
+        r"movement_threshold",
+        r"(?<!new_custom_)classifier\.pkl",
+        r"(?i)swirl",
+        r"The new spell will be recognized",
+    ]
+
+    issues = []
+    for doc_path in docs_to_check:
+        content = (PROJECT_ROOT / doc_path).read_text(encoding='utf-8')
+        for pattern in retired:
+            for match in re.finditer(pattern, content):
+                line_num = content[:match.start()].count('\n') + 1
+                issues.append(f"{doc_path}:{line_num} - {match.group()}")
+
+    if not (PROJECT_ROOT / "docs/images/gesture-card.png").exists():
+        issues.append("docs/images/gesture-card.png missing")
+
+    if issues:
+        print("✗ Docs out of date:")
+        for issue in issues:
+            print(f"  {issue}")
+        return False
+
+    print("✓ Docs use current terms and the gesture card exists!")
+    return True
+
+
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("INTERACTIVE WAND - DOCUMENTATION TESTS")
@@ -177,6 +217,7 @@ if __name__ == "__main__":
         "No old filenames": test_no_old_filenames(),
         "Mermaid diagrams": test_mermaid_diagrams(),
         "Internal links": test_internal_links(),
+        "Docs match the app": test_docs_match_the_app(),
     }
 
     print("\n" + "="*60)
